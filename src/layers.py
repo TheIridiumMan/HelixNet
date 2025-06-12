@@ -185,3 +185,29 @@ class Flatten(Layer):
         # The first dimension (N, batch size) is preserved.
         # The rest of the dimensions are flattened.
         return X.reshape(self.input_shape[0], -1)
+
+class MaxPooling2D(Layer):
+    """
+    A layer to perform max pooling over a 4D input (N, C, H, W).
+    """
+    def __init__(self, pool_size, stride=None):
+        super().__init__("MaxPooling2D")
+        if isinstance(pool_size, int):
+            self.pool_size = (pool_size, pool_size)
+        else:
+            self.pool_size = pool_size
+
+        # If stride is not specified, it defaults to the pool_size
+        if stride is None:
+            self.stride = self.pool_size
+        elif isinstance(stride, int):
+            self.stride = (stride, stride)
+        else:
+            self.stride = stride
+
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        """
+        Applies the max pooling operation.
+        """
+        # `mygrad.nnet.max_pool_2d` handles the operation.
+        return nnet.max_pool_2d(X, self.pool_size, self.stride)
