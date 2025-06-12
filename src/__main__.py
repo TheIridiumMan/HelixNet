@@ -23,13 +23,13 @@ train, test = train_test_split(df, test_size=0.2)
 
 # FIX 1: The final layer should have `activation=None` because softmax_crossentropy
 # applies the softmax internally for better numerical stability.
-lr1 = Layers.Dense(784, 256, activation=activations.ReLU, use_bias=True)
-#lr2 = Layers.Dense(256, 256, activation=activations.ReLU, use_bias=True)
-lr3 = Layers.Dense(256, 10, activation=(lambda x: x))
-model = models.Sequental([lr1, lr3]) # Simplified model for faster demonstration
+lr1 = layers.Dense(784, 256, activation=activations.ReLU, use_bias=True)
+lr2 = layers.Dense(256, 256, activation=activations.ReLU, use_bias=True)
+lr3 = layers.Dense(256, 10, activation=(lambda x: x))
+model = models.Sequental([lr1, lr2, lr3]) # Simplified model for faster demonstration
 
-optim = optimisers.Adam(0.1, 0.0001)
-print("[bold yellow]Layers initiated and connected successfully[/]")
+optim = optimisers.SGD(0.01, 0.001)
+print("[bold yellow]layers initiated and connected successfully[/]")
 
 def batch_gen(df, batch_size):
     for start in range(0, len(df), batch_size):
@@ -40,7 +40,7 @@ print("[bold red on yellow]The Training has started[/]")
 
 loss_history = []
 batch_len = 32
-epochs = 5
+epochs = 15
 
 for i in range(epochs):
     # FIX 2: Correct total for the progress bar
@@ -67,6 +67,7 @@ for i in range(epochs):
     # Evaluate loss on the last batch of the epoch
     print(f"[bold green]Epoch {i+1} trained successfully with final batch loss [/bold green]"
           f"[bold white]{loss_value.data.item():.4f}[/bold white]")
+    optim.epoch_done()
 
 # After training, get predictions on the test set
 test_x = mg.tensor(test.drop(columns="label").values.astype(np.float32) / 255)

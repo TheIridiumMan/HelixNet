@@ -5,6 +5,7 @@ from abc import ABC
 
 import numpy as np
 import mygrad as mg
+from mygrad import nnet
 from rich import print
 
 
@@ -37,7 +38,7 @@ class Dense(Layer):
     """
     def __init__(self, inputs: int, params: int, activation,
     use_bias: bool = True, dtype = mg.float32) -> None:
-        super().__init__("Dense")
+        super().__init__("dense")
         self.weights = mg.tensor(np.random.rand(inputs, params), constant=False,
                                  dtype=dtype)
         self.use_bias = use_bias
