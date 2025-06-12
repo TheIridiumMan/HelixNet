@@ -29,6 +29,9 @@ class SGD:
         self.lr = self.get_current_lr()
 
         for layer in model.layers:
+            # Skip the layer doesn't have weights e.g. (max pooling, flatten)
+            if not hasattr(layer, "weights"):
+                continue
             # Skip update if there's no gradient (e.g., from a frozen layer)
             if layer.weights.grad is None:
                 continue

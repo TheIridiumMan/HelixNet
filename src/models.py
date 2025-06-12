@@ -20,6 +20,9 @@ class Sequental:
             mg.tensor: the predictions
         """
         for layer in self.layers:
+            # Skip the layer doesn't have weights e.g. (max pooling, flatten)
+            if not hasattr(layer, "weights"):
+                continue
             x = layer.forward(x)
         return x
 
