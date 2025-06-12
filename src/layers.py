@@ -155,7 +155,7 @@ class Flatten(Layer):
         Takes an input of shape (N, C, H, W) and flattens it
         to a shape of (N, C*H*W).
         """
-        self.input_shape = X.shape
+        self.input_shape = X.data.shape
         # The first dimension (N, batch size) is preserved.
         # The rest of the dimensions are flattened.
         return X.reshape(self.input_shape[0], -1)

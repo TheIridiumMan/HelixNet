@@ -57,7 +57,7 @@ model = models.Sequental([
 INITIAL_LR = 0.05
 MOMENTUM = 0.9
 EPOCHS = 5  # CNNs often converge faster than Dense nets
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 optim = optimisers.SGD(INITIAL_LR, False, momentum=MOMENTUM)
 print(f"Optimizer: SGDWithMomentum(lr={INITIAL_LR}, momentum={MOMENTUM})")
@@ -74,7 +74,9 @@ loss_history = []
 for epoch in range(EPOCHS):
     # Optional: Learning Rate Scheduler can be added here as before
 
-    for batch in track(batch_gen(train, BATCH_SIZE), description=f"Training CNN Epoch {epoch+1}/{EPOCHS}...", total=len(train)//BATCH_SIZE):
+    for batch in track(batch_gen(train, BATCH_SIZE),
+                               description=f"Training CNN Epoch {epoch+1}/{EPOCHS}...",
+                               total=len(train)//BATCH_SIZE):
         # IMPORTANT: Reshape data for CNN input (N, C, H, W)
         x = batch.drop(columns="label").values.astype(np.float32) / 255
         x = mg.tensor(x.reshape(-1, INPUT_CHANNELS, 28, 28))
@@ -88,16 +90,19 @@ for epoch in range(EPOCHS):
         loss_value.backward()
         optim.optimise(model)
         model.null_grads()
+    del x, logits
+    print(f"[bold green] Trained with loss: {loss_value}")
 
-    # --- 5. EVALUATION AT END OF EPOCH ---
-    test_x_flat = test.drop(columns="label").values.astype(np.float32) / 255
-    test_x_reshaped = mg.tensor(test_x_flat.reshape(-1, INPUT_CHANNELS, 28, 28))
+del df
+# --- 5. EVALUATION AT END OF EPOCH ---
+test_x_reshaped = test.drop(columns="label").values.astype(np.float16) / 255
+test_x_reshaped = mg.tensor(test_x_reshaped.reshape(-1, INPUT_CHANNELS, 28, 28))
 
-    test_logits = model.forward(test_x_reshaped)
-    predictions = np.argmax(test_logits.data, axis=1)
-    accuracy = (test["label"].values == predictions).mean()
+test_logits = model.forward(test_x_reshaped)
+predictions = np.argmax(test_logits.data, axis=1)
+accuracy = (test["label"].values == predictions).mean()
 
-    print(f"[bold green]Epoch {epoch+1} Complete | Final Batch Loss: {loss_value.data.item():.4f} | "
-          f"Test Accuracy: {accuracy:.2%}[/bold green]")
+print(f"[bold green]Epoch {epoch+1} Complete | Final Batch Loss: {loss_value.data.item():.4f} | "
+      f"Test Accuracy: {accuracy:.2%}[/bold green]")
 
 print(f"\n[bold purple on white] Final CNN Test Accuracy: {accuracy:.2%} :tada: [/]")
