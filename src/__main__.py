@@ -28,7 +28,7 @@ lr2 = layers.Dense(256, 256, activation=activations.ReLU, use_bias=True)
 lr3 = layers.Dense(256, 10, activation=(lambda x: x))
 model = models.Sequental([lr1, lr2, lr3]) # Simplified model for faster demonstration
 
-optim = optimisers.SGD(0.01, 0.001)
+optim = optimisers.SGD(0.05, False, 0.9)
 print("[bold yellow]layers initiated and connected successfully[/]")
 
 def batch_gen(df, batch_size):
