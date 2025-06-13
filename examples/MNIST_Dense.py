@@ -9,11 +9,10 @@ from mygrad.computational_graph import build_graph
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, track
 from rich import print
 
-import layers
-import optimisers
-import activations
-import models
-import loss
+import helixnet.layers as layers
+import helixnet.optimisers as optimisers
+import helixnet.activations as activations
+import helixnet.models as models
 
 print("[bold yellow]Libraries are imported loading data[/bold yellow]")
 df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")

@@ -2,7 +2,7 @@ import numpy as np
 import mygrad as mg
 from rich import print
 
-import layers
+import Layers
 import activations
 import models
 
@@ -23,18 +23,18 @@ def run_cnn_test():
     # 2. Define the CNN model using our Sequental class
     model = models.Sequental([
         # First conv layer: 1 input channel, 4 output channels, 3x3 kernel
-        layers.Conv2D(input_channels=1, output_channels=4, kernel_size=3, activation=activations.ReLU),
+        Layers.Conv2D(input_channels=1, output_channels=4, kernel_size=3, activation=activations.ReLU),
 
         # Second conv layer: 4 input channels, 8 output channels, 3x3 kernel
-        layers.Conv2D(input_channels=4, output_channels=8, kernel_size=3, activation=activations.ReLU),
+        Layers.Conv2D(input_channels=4, output_channels=8, kernel_size=3, activation=activations.ReLU),
 
         # Flatten the output to feed into a Dense layer
-        layers.Flatten(),
+        Layers.Flatten(),
 
         # A dense layer for classification (e.g., 10 classes like MNIST)
         # The input size to this layer depends on the output of the conv layers.
         # Output of Conv2: (N, 8, 24, 24). Flattened: 8 * 24 * 24 = 4608
-        layers.Dense(inputs=8 * 24 * 24, params=10, activation=activations.softmax)
+        Layers.Dense(inputs=8 * 24 * 24, params=10, activation=activations.softmax)
     ])
 
     print("\n[bold yellow]Model Architecture:[/bold yellow]")

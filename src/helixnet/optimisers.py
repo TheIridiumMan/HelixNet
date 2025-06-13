@@ -1,7 +1,7 @@
 import numpy as np
 import mygrad as mg
 from rich import print
-import models
+import helixnet.models as models
 
 
 class SGD:

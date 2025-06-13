@@ -7,15 +7,15 @@ from sklearn.model_selection import train_test_split
 from rich.progress import track
 from rich import print
 
-import layers
-import optimisers
-import activations
-import models
+import helixnet.layers as  layers
+import helixnet.optimisers as optimisers
+import helixnet.activations as activations
+import helixnet.models as models
 
 # --- 1. SETUP & DATA PREPARATION ---
 print("[bold yellow]Loading and preparing MNIST data for CNN...[/bold yellow]")
 df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")
-train, test = train_test_split(df, test_size=0.2, random_state=42)
+train, test = train_test_split(df, test_size=2048, random_state=42)
 
 # --- 2. MODEL CONFIGURATION: Build the CNN ---
 print("[bold yellow]Initializing CNN model...[/bold yellow]")
@@ -93,13 +93,13 @@ for epoch in range(EPOCHS):
     del x, logits
     print(f"[bold green] Trained with loss: {loss_value}")
 
-del df
+del df, train
 # --- 5. EVALUATION AT END OF EPOCH ---
-test_x_reshaped = test.drop(columns="label").values.astype(np.float16) / 255
+test_x_reshaped = test.drop(columns="label").values.astype(np.float32) / 255
 test_x_reshaped = mg.tensor(test_x_reshaped.reshape(-1, INPUT_CHANNELS, 28, 28))
 
-test_logits = model.forward(test_x_reshaped)
-predictions = np.argmax(test_logits.data, axis=1)
+test_x_reshaped = model.forward(test_x_reshaped)
+predictions = np.argmax(test_x_reshaped.data, axis=1)
 accuracy = (test["label"].values == predictions).mean()
 
 print(f"[bold green]Epoch {epoch+1} Complete | Final Batch Loss: {loss_value.data.item():.4f} | "

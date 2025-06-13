@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import mygrad as mg
 
-import layers
+import helixnet.layers as layers
 
 
 class Sequental:
