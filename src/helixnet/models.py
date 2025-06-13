@@ -7,7 +7,7 @@ import helixnet.layers as layers
 
 
 class Sequental:
-    def __init__(self, layers: List[layers.Dense]) -> None:
+    def __init__(self, layers: List[layers.Layer]) -> None:
         self.layers = layers
 
     def forward(self, x: mg.tensor) -> mg.tensor:
@@ -33,9 +33,4 @@ class Sequental:
     
     def null_grads(self):
         for layer in self.layers:
-            # Skip the layer doesn't have weights e.g. (max pooling, flatten)
-            if not hasattr(layer, "weights"):
-                continue
-            layer.weights.null_grad()
-            if layer.use_bias:
-                layer.bias.null_grad()
+            layer.null_grad()
