@@ -85,42 +85,33 @@ class Adam:
         self.lr = self.get_current_lr()
 
         for layer in model.layers:
-            if not hasattr(layer, "weight_cache"):
-                layer.weight_momentum = mg.zeros_like(layer.weights.data)
-                layer.weight_cache = mg.zeros_like(layer.weights.data)
-                layer.bias_momentum = mg.zeros_like(layer.bias.data)
-                layer.bias_cache = mg.zeros_like(layer.bias.data)
-
-            layer.weight_momentum = (self.beta_1
-                                     * layer.weight_momentum
-                                     + (1 - self.beta_1) * layer.weights.grad)
-
-            layer.bias_momentum = (self.beta_1
-                                   * layer.bias_momentum
-                                   + (1 - self.beta_1) * layer.bias.grad)
-
-            weight_momentum_corrected = (layer.weight_momentum /
-                                         ((1 - self.beta_1)**(self.iters + 1)))
-
-            bias_momentum_corrected = (layer.bias_momentum /
-                                       ((1 - self.beta_1)**(self.iters + 1)))
-
-            layer.weight_cache = (self.beta_2 * layer.weight_cache +
-                                  (1 - self.beta_2) * layer.weights.grad**2)
-
-            layer.bias_cache = (self.beta_2 * layer.bias_cache +
-                                (1 - self.beta_2) * layer.bias.grad**2)
-
-            weight_cache_corrected = (layer.weight_cache /
-                                      (1 - self.beta_2 ** (self.iters + 1)))
-
-            bias_cache_corrected = (layer.bias_cache /
-                                    (1 - self.beta_2 ** (self.iters + 1)))
-
             layer.weights += mg.tensor(layer.weights.data + (-self.lr
                                                              * weight_momentum_corrected
-                                                             / (mg.sqrt(weight_cache_corrected).data + self.epilson)), constant=False)
+                                                             / (mg.sqrt(weight_cache_corrected).data
+                                                                 + self.epilson)), constant=False)
 
             layer.bias = mg.tensor(layer.bias.data + (-self.lr
                                                       * bias_momentum_corrected
-                                                      / (np.sqrt(bias_cache_corrected) + self.epilson)), constant=False)
+                                                      / (np.sqrt(bias_cache_corrected) +
+                                                         self.epilson)), constant=False)
+
+    def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer,
+                       i: int) -> None:
+        if not hasattr(layer, f"param_cache_{i}"):
+            setattr(layer, f"param_momentum_{i}",
+                    np.zeros_like(parameter.data))
+            setattr(layer, f"param_cache_{i}", np.zeros_like(parameter.data))
+
+        setattr(layer, f"param_momentum_{i}", (self.beta_1
+                                               * getattr(layer, f"param_momentum_{i}")
+                                               + (1 - self.beta_1) * parameter.grad))
+        param_momentum_corrected = (getattr(layer, f"param_momentum_{i}") /
+                                    ((1 - self.beta_1)**(self.iters + 1)))
+        setattr(layer, f"param_cache_{i}", (self.beta_2 * getattr(layer, f"param_cache_{i}") +
+                                            (1 - self.beta_2) * parameter.grad**2))
+        param_cache_corrected = (getattr(layer, f"param_cache_{i}") /
+                                 (1 - self.beta_2 ** (self.iters + 1)))
+        parameter.data += layer.weights.data + (-self.lr
+                                                    * param_momentum_corrected
+                                                    / (mg.sqrt(param_cache_corrected).data
+                                                       + self.epilson))
