@@ -9,11 +9,10 @@ from mygrad.computational_graph import build_graph
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, track
 from rich import print
 
-import layers
-import optimisers
-import activations
-import models
-import loss
+import helixnet.layers as layers
+import helixnet.optimisers as optimisers
+import helixnet.activations as activations
+import helixnet.models as models
 
 print("[bold yellow]Libraries are imported loading data[/bold yellow]")
 df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")
@@ -28,7 +27,7 @@ lr2 = layers.Dense(256, 256, activation=activations.ReLU, use_bias=True)
 lr3 = layers.Dense(256, 10, activation=(lambda x: x))
 model = models.Sequental([lr1, lr2, lr3]) # Simplified model for faster demonstration
 
-optim = optimisers.SGD(0.01, 0.001)
+optim = optimisers.SGD(0.05, False, 0.9)
 print("[bold yellow]layers initiated and connected successfully[/]")
 
 def batch_gen(df, batch_size):

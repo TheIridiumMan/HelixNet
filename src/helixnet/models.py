@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import mygrad as mg
 
-import layers
+import helixnet.layers as layers
 
 
 class Sequental:
@@ -33,6 +33,9 @@ class Sequental:
     
     def null_grads(self):
         for layer in self.layers:
+            # Skip the layer doesn't have weights e.g. (max pooling, flatten)
+            if not hasattr(layer, "weights"):
+                continue
             layer.weights.null_grad()
             if layer.use_bias:
                 layer.bias.null_grad()
