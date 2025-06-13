@@ -37,7 +37,7 @@ class Layer(ABC):
     type_ (str): The type of the layer
     trainable_params (List[mg.tensor]): the parameters that needs to be trained
     """
-    def __init__(self, type_: str, trainable_params: List[mg.tensor]) -> None:
+    def __init__(self, type_: str, trainable_params: List[mg.Tensor]) -> None:
         self.type = type_
         # self.total_params = total_params
         self.trainable_params: List[mg.Tensor] = trainable_params
@@ -45,11 +45,11 @@ class Layer(ABC):
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
             if (number := names.get(type_)):
-                self.name = type_ + str(number)
+                self.name = type_ + " " + str(number)
                 names[type_] += 1
             else:
-                self.name = type_ + str(1)
-                names[type_] = 1
+                self.name = type_ + " 1"
+                names[type_] = 2  # Because we already used `1`
         else:
             self.name = self.type_
     def __call__(self, *args, **kwargs) -> mg.Tensor:
@@ -95,10 +95,9 @@ class Dense(Layer):
         if self.use_bias:
             self.bias = mg.tensor(np.random.randn(1, params), constant=False,
                                   dtype=dtype)
-            super().__init__("Dense", [self.weights, self.bias], 
-                             (inputs * params + params))
+            super().__init__("Dense", [self.weights, self.bias])
         else:
-            super().__init__("Dense", [self.weights], inputs * params)
+            super().__init__("Dense", [self.weights])
 
 
     def forward(self, X: np.array):

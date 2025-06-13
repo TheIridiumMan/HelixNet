@@ -1,10 +1,41 @@
+from abc import ABC
+
 import numpy as np
 import mygrad as mg
 from rich import print
-import helixnet.models as models
+from . import models
+from . import layers
 
 
-class SGD:
+class Optimiser(ABC):
+    def __init__(self) -> None:
+        self.step = 1
+
+    def epoch_done(self):
+        """A simple method should be called after every epoch"""
+        self.step += 1
+
+    def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer, index: int) -> None:
+        """This function takes parameters one by one
+
+        Args:
+            parameter (mg.Tensor): The parameter itself
+            layer (layers.Layer): The parent layer for accesing any attribute
+        """
+
+    def optimise(self, model: models.Sequental) -> None:
+        """This method trains models and calls optimise_param
+        for every parameter in the layer
+
+        Args:
+            model (models.Sequental): The model that needs to be trained
+        """
+        for layer in model.layers:
+            for i, parameter in enumerate(layer.trainable_params):
+                self.optimise_param(parameter, layer, i)
+
+
+class SGD(Optimiser):
     def __init__(self, lr, decay=None, momentum=None) -> None:
         self.lr = self.init_lr = lr
         self.step = 1
@@ -20,53 +51,20 @@ class SGD:
         """A simple method that should be called after each epoch"""
         self.step += 1
 
-    def optimise(self, model: models.Sequental) -> None:
-        """A simple optimization for Sequental Models
-
-        Args:
-            model (models.Sequental): the model
-        """
+    def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer,
+                       i: int) -> None:
         self.lr = self.get_current_lr()
-
-        for layer in model.layers:
-            # Skip the layer doesn't have weights e.g. (max pooling, flatten)
-            if not hasattr(layer, "weights"):
-                continue
-            # Skip update if there's no gradient (e.g., from a frozen layer)
-            if layer.weights.grad is None:
-                continue
-
-            if self.momentum:
-                # Initialize momentum terms if they don't exist.
-                # Use np.zeros to store raw data, NOT a tensor.
-                if not hasattr(layer, "weights_momentum"):
-                    layer.weights_momentum = np.zeros_like(layer.weights.data)
-
-                # CORRECT: Perform all calculations using raw .data to avoid graph-building
-                weight_update_val = (
-                    self.momentum * layer.weights_momentum) - (self.lr * layer.weights.grad)
-
-                # CORRECT: Store the updated momentum as raw data
-                layer.weights_momentum = weight_update_val
-
-                # Apply the update
-                layer.weights.data += weight_update_val
-
-                # CORRECT: Handle bias logic *inside* the use_bias check
-                if layer.use_bias and layer.bias.grad is not None:
-                    if not hasattr(layer, "bias_momentum"):
-                        layer.bias_momentum = np.zeros_like(layer.bias.data)
-
-                    bias_update_val = (
-                        self.momentum * layer.bias_momentum) - (self.lr * layer.bias.grad)
-                    layer.bias_momentum = bias_update_val
-                    layer.bias.data += bias_update_val
-
-            else:
-                # This is the standard (no momentum) update
-                layer.weights.data -= self.lr * layer.weights.grad
-                if layer.use_bias and layer.bias.grad is not None:
-                    layer.bias.data -= self.lr * layer.bias.grad
+        if self.momentum:
+            if not hasattr(layer, f"param_momentum_{i}"):
+                setattr(layer, f"param_momentum_{i}",
+                        np.zeros_like(parameter.data))
+            param_update_value = ((self.momentum * getattr(layer,
+                                                           f"param_momentum_{i}")) \
+                - (self.lr * parameter.grad))
+            setattr(layer, f"param_momentum_{i}", param_update_value)
+            parameter.data += param_update_value
+        else:
+            parameter.data -= self.lr * parameter.grad
 
 
 class Adam:
