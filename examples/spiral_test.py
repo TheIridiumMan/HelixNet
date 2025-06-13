@@ -10,10 +10,10 @@ from rich import print
 import nnfs
 from nnfs.datasets.spiral import create_data
 
-import layers
-import optimisers
-import activations
-import models
+import helixnet.layers as layers
+import helixnet.optimisers as optimisers
+import helixnet.activations as activations
+import helixnet.models as models
 
 nnfs.init()
 X, y = create_data(1000, 3)
@@ -34,12 +34,12 @@ lr3 = layers.Dense(64, 64, activation=activations.ReLU, use_bias=True,
 lr4 = layers.Dense(64, 3, activation=(lambda x: x), use_bias=True,
                    dtype=mg.float64)
 model = models.Sequental([lr1, lr2, lr3, lr4])
-optim = optimisers.Adam()
+optim = optimisers.SGD(0.1, 0.0001)
 
 losses = []
 accs = []
 try:
-    for i in track(range(50000), description="Training..."):
+    for i in track(range(10000), description="Training..."):
         # The forward pass now produces probabilities because of softmax
         pred_probs = model.forward(X)
 
