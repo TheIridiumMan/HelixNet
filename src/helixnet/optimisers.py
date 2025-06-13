@@ -59,8 +59,8 @@ class SGD(Optimiser):
                 setattr(layer, f"param_momentum_{i}",
                         np.zeros_like(parameter.data))
             param_update_value = ((self.momentum * getattr(layer,
-                                                           f"param_momentum_{i}")) \
-                - (self.lr * parameter.grad))
+                                                           f"param_momentum_{i}"))
+                                  - (self.lr * parameter.grad))
             setattr(layer, f"param_momentum_{i}", param_update_value)
             parameter.data += param_update_value
         else:

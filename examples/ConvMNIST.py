@@ -15,7 +15,7 @@ import helixnet.models as models
 # --- 1. SETUP & DATA PREPARATION ---
 print("[bold yellow]Loading and preparing MNIST data for CNN...[/bold yellow]")
 df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")
-train, test = train_test_split(df, test_size=2048, random_state=42)
+train, test = train_test_split(df, test_size=1024, random_state=42)
 
 # --- 2. MODEL CONFIGURATION: Build the CNN ---
 print("[bold yellow]Initializing CNN model...[/bold yellow]")
@@ -60,7 +60,7 @@ EPOCHS = 5  # CNNs often converge faster than Dense nets
 BATCH_SIZE = 32
 
 optim = optimisers.SGD(INITIAL_LR, False, momentum=MOMENTUM)
-print(f"Optimizer: SGDWithMomentum(lr={INITIAL_LR}, momentum={MOMENTUM})")
+print(f"Optimizer: SGD(lr={INITIAL_LR}, momentum={MOMENTUM})")
 
 # --- 4. TRAINING LOOP ---
 def batch_gen(df, batch_size):
@@ -95,8 +95,7 @@ for epoch in range(EPOCHS):
 
 del df, train
 # --- 5. EVALUATION AT END OF EPOCH ---
-test_x_reshaped = test.drop(columns="label").values.astype(np.float32) / 255
-test_x_reshaped = mg.tensor(test_x_reshaped.reshape(-1, INPUT_CHANNELS, 28, 28))
+test_x_reshaped = test.drop(columns="label").values.reshape(-1, INPUT_CHANNELS, 28, 28).astype(np.float32) / 255
 
 test_x_reshaped = model.forward(test_x_reshaped)
 predictions = np.argmax(test_x_reshaped.data, axis=1)

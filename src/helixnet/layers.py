@@ -271,7 +271,7 @@ class Conv2D(Layer):
         Performs a forward pass, splitting the batch across multiple processes.
         """
         batch_size = X.shape[0]
-        conv_result = nnet.conv_nd(X, self.weights.data, stride=self.stride,
+        conv_result = nnet.conv_nd(X, self.weights, stride=self.stride,
                                    padding=self.padding)
         
         if self.use_bias:
