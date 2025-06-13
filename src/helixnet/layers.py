@@ -1,6 +1,7 @@
 """
 This module contains layers.
 """
+from typing import List, Dict, Optional
 from abc import ABC
 import os
 from concurrent.futures import ProcessPoolExecutor
@@ -28,14 +29,29 @@ def _conv_worker(x_chunk: np.ndarray, filters: np.ndarray, stride: tuple, paddin
     conv_result = nnet.conv_nd(x_tensor, filters_tensor, stride=stride, padding=padding)
     return conv_result.data
 
+names: Dict[str, int] = dict()
+
 class Layer(ABC):
     """
     The Base class for creating layers.
+    type_ (str): The type of the layer
+    trainable_params (List[mg.tensor]): the parameters that needs to be trained
     """
-    def __init__(self, type_) -> None:
+    def __init__(self, type_: str, trainable_params: List[mg.tensor]) -> None:
         self.type = type_
-        self.name = type_
-
+        # self.total_params = total_params
+        self.trainable_params: List[mg.Tensor] = trainable_params
+        if trainable_params != []:
+            # In case of the layer doesn't have any trainable parameters.
+            # We won't add numbers for it
+            if (number := names.get(type_)):
+                self.name = type_ + str(number)
+                names[type_] += 1
+            else:
+                self.name = type_ + str(1)
+                names[type_] = 1
+        else:
+            self.name = self.type_
     def __call__(self, *args, **kwargs) -> mg.Tensor:
         """
         This operator should perform a forward propagation
@@ -45,6 +61,20 @@ class Layer(ABC):
         """
         The forward propagation
         """
+    def predict(self, *args, **kwargs) -> mg.Tensor:
+        """This function disables computation graph building
+        Useful for model inference not training.
+
+        Returns:
+            mg.Tensor: the output of the layer
+        """
+        with mg.no_autodiff:
+            return self.forward(*args, **kwargs)
+    def null_grad(self):
+        """This function resets the gradients of parameters.
+        This method should not be modified by children"""
+        for parameter in self.trainable_params:
+            parameter.null_grad()
 
 class Dense(Layer):
     """A basic dense layer
@@ -58,7 +88,6 @@ class Dense(Layer):
     """
     def __init__(self, inputs: int, params: int, activation,
     use_bias: bool = True, dtype = mg.float32) -> None:
-        super().__init__("dense")
         he_stddev = np.sqrt(2. / inputs)
         self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False)
         self.use_bias = use_bias
@@ -66,6 +95,10 @@ class Dense(Layer):
         if self.use_bias:
             self.bias = mg.tensor(np.random.randn(1, params), constant=False,
                                   dtype=dtype)
+            super().__init__("Dense", [self.weights, self.bias], 
+                             (inputs * params + params))
+        else:
+            super().__init__("Dense", [self.weights], inputs * params)
 
 
     def forward(self, X: np.array):
@@ -220,11 +253,9 @@ class Conv2D(Layer):
     """
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
                  stride=1, padding=0, activation=None, use_bias: bool = True):
-        super().__init__("Conv2D")
 
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
-        # TODO: Add name generator
 
         # Xavier/Glorot initialization for weights (filters)
         # Shape: (C_out, C_in, K_H, K_W)
@@ -237,8 +268,10 @@ class Conv2D(Layer):
         if self.use_bias:
             # Bias has one value per output channel
             self.bias = mg.tensor(np.zeros(output_channels))
+            super().__init__("Conv2D", [self.weights, self.bias])
         else:
             self.bias = None
+            super().__init__("Conv2D", [self.weights])
 
         self.stride = stride
         self.padding = padding
@@ -267,7 +300,7 @@ class Flatten(Layer):
     from convolutional to dense layers.
     """
     def __init__(self):
-        super().__init__("Flatten")
+        super().__init__("Flatten", [])
         self.input_shape = None
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
@@ -285,7 +318,7 @@ class MaxPooling2D(Layer):
     A layer to perform max pooling over a 4D input (N, C, H, W).
     """
     def __init__(self, pool_size, stride=None):
-        super().__init__("MaxPooling2D")
+        super().__init__("MaxPooling2D", [])
         if isinstance(pool_size, int):
             self.pool_size = (pool_size, pool_size)
         else:
