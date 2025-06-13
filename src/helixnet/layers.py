@@ -16,19 +16,6 @@ import mygrad as mg
 from mygrad import nnet
 from rich import print
 
-def _conv_worker(x_chunk: np.ndarray, filters: np.ndarray, stride: tuple, padding: int) -> np.ndarray:
-    """
-    A worker function that performs a convolution on a chunk of the batch.
-    It takes NumPy arrays as input to be pickle-friendly.
-    """
-    # We create tensors inside the worker process
-    x_tensor = mg.tensor(x_chunk)
-    filters_tensor = mg.tensor(filters)
-
-    # Perform the convolution
-    conv_result = nnet.conv_nd(x_tensor, filters_tensor, stride=stride, padding=padding)
-    return conv_result.data
-
 names: Dict[str, int] = dict()
 
 class Layer(ABC):
@@ -51,7 +38,7 @@ class Layer(ABC):
                 self.name = type_ + " 1"
                 names[type_] = 2  # Because we already used `1`
         else:
-            self.name = self.type_
+            self.name = type_
     def __call__(self, *args, **kwargs) -> mg.Tensor:
         """
         This operator should perform a forward propagation
@@ -335,5 +322,4 @@ class MaxPooling2D(Layer):
         """
         Applies the max pooling operation.
         """
-        # `mygrad.nnet.max_pool_2d` handles the operation.
         return _max_pool(X, self.pool_size, self.stride)
