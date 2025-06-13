@@ -4,6 +4,11 @@ This module contains layers.
 from abc import ABC
 import os
 from concurrent.futures import ProcessPoolExecutor
+from numbers import Integral  # Max Pooling
+
+from mygrad.operation_base import Operation
+from mygrad.tensor_base import Tensor
+from mygrad.nnet.layers.utils import sliding_window_view
 
 import numpy as np
 import mygrad as mg
@@ -86,7 +91,122 @@ class Dense(Layer):
             return res
         else:
             raise NotImplementedError("Creating model with training data is not"
-                                      "Supported yet. Use pickle")
+                                      "Supported yet. Use pickle instead")
+
+# Well class _MaxPoolND taken from MyGrad.nnet implemenation but it doesn't use
+# Floor division so I had to create mine with floor division
+class _MaxPoolND(Operation):
+    def __call__(self, x, pool, stride):
+        self.variables = (x,)  # data: ((N0, ...), C0, ...)
+        x = x.data
+
+        assert isinstance(pool, (tuple, list, np.ndarray)) and all(
+            i >= 0 and isinstance(i, Integral) for i in pool
+        )
+        pool = np.asarray(pool, dtype=int)
+        assert all(i > 0 for i in pool)
+        assert x.ndim >= len(
+            pool
+        ), "The number of pooled dimensions cannot exceed the dimensionality of the data."
+
+        stride = (
+            np.array([stride] * len(pool))
+            if isinstance(stride, Integral)
+            else np.asarray(stride, dtype=int)
+        )
+        assert len(stride) == len(pool) and all(
+            s >= 1 and isinstance(s, Integral) for s in stride
+        )
+
+        self.pool = pool  # (P0, ...)
+        self.stride = stride  # (S0, ...)
+
+        num_pool = len(pool)
+        num_no_pool = x.ndim - num_pool
+
+        x_shape = np.array(x.shape[num_no_pool:])
+        w_shape = pool
+        # MODIFIED: BY ME `//` instead of `/`
+        out_shape = (x_shape - w_shape) // stride + 1
+
+        if not all(i.is_integer() and i > 0 for i in out_shape):
+            msg = "Stride and kernel dimensions are incompatible: \n"
+            msg += f"Input dimensions: {(tuple(x_shape))}\n"
+            msg += f"Stride dimensions: {(tuple(stride))}\n"
+            msg += f"Pooling dimensions: {(tuple(w_shape))}\n"
+            raise ValueError(msg)
+
+        pool_axes = tuple(-(i + 1) for i in range(num_pool))
+
+        # (G0, ...) is the tuple of grid-positions for placing each window (not including stride)
+        # sliding_window_view(x): ((N0, ...), C0, ...)          -> (G0, ..., (N0, ...), P0, ...)
+        # max-pool:               (G0, ..., (N0, ...), P0, ...) -> (G0, ..., (N0, ...))
+        maxed = sliding_window_view(x, self.pool, self.stride).max(axis=pool_axes)
+        axes = tuple(range(maxed.ndim))
+
+        # (G0, ..., (N0, ...)) -> ((N0, ...), G0, ...)
+        out = maxed.transpose(axes[-num_no_pool:] + axes[:-num_no_pool])
+        return out if out.flags["C_CONTIGUOUS"] else np.ascontiguousarray(out)
+
+    def backward_var(self, grad, index, **kwargs):
+        """Parameters
+        ----------
+        grad : numpy.ndarray, shape=((N0, ...), G0, ...),
+        index : int"""
+        var = self.variables[index]
+        x = var.data
+        num_pool = len(self.pool)
+
+        sl = sliding_window_view(x, self.pool, self.stride)
+        grid_shape = sl.shape
+        maxed = sl.reshape(*sl.shape[:-num_pool], -1).argmax(-1)
+        axes = tuple(range(maxed.ndim))
+
+        # argmax within a given flat-window
+        maxed = maxed.transpose(
+            axes[num_pool:] + axes[:num_pool]
+        )  # ((N0, ...), G0, ...)
+
+        # flat-index offset associated with reshaped window within `x`
+        row_major_offset = tuple(np.cumprod(x.shape[-num_pool:][:0:-1])[::-1]) + (1,)
+
+        # flat index of argmax, updated based on position within window, according to shape of `x`
+        in_window_offset = sum(
+            ind * off
+            for ind, off in zip(np.unravel_index(maxed, self.pool), row_major_offset)
+        )
+
+        # flat-index of strided window placement, relative to `x`
+        window_offset = sum(
+            ind * s * off
+            for ind, s, off in zip(
+                np.indices(grid_shape[:num_pool]), self.stride, row_major_offset
+            )
+        )
+
+        # indices required to traverse pool-axis-flattened array
+        # ((N0, ...) G0*...)
+        flat_grid_shape = (*maxed.shape[:-num_pool], np.prod(maxed.shape[-num_pool:]))
+        index = np.indices(flat_grid_shape)
+
+        # update trailing indices to traverse location of max entries within pooled axes
+        index[-1] = (in_window_offset + window_offset).reshape(
+            *flat_grid_shape[:-1], -1
+        )
+
+        # accumulate gradient within pool-axis-flattened dx, then reshape to match shape of `x`
+        dx = np.zeros(x.shape[:-num_pool] + (np.prod(x.shape[-num_pool:]),))
+        np.add.at(dx, tuple(index), grad.reshape(*x.shape[:-num_pool], -1))
+        return dx.reshape(x.shape)
+
+def _max_pool(
+    x,
+    pool,
+    stride,
+    *,
+    constant = None,
+) -> Tensor:
+    return Tensor._op(_MaxPoolND, x, op_args=(pool, stride), constant=constant)
 
 class Conv2D(Layer):
     """
@@ -184,4 +304,4 @@ class MaxPooling2D(Layer):
         Applies the max pooling operation.
         """
         # `mygrad.nnet.max_pool_2d` handles the operation.
-        return nnet.max_pool(X, self.pool_size, self.stride)
+        return _max_pool(X, self.pool_size, self.stride)
