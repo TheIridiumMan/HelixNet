@@ -16,6 +16,8 @@ import mygrad as mg
 from mygrad import nnet
 from rich import print
 
+from . import activations
+
 names: Dict[str, int] = dict()
 
 class Layer(ABC):
@@ -317,3 +319,128 @@ class MaxPooling2D(Layer):
         Applies the max pooling operation.
         """
         return _max_pool(X, self.pool_size, self.stride)
+
+class LSTMCell(Layer):
+    """
+    A single cell of an LSTM. Performs the computation for one timestep.
+    This is an efficient implementation where all gate calculations are
+    done in a single matrix multiplication.
+    """
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__("LSTMCell")
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+
+        # The input to the gates is the concatenation of the previous hidden state
+        # and the current input, so its size is hidden_size + input_size.
+        concat_size = hidden_size + input_size
+
+        # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
+        self.weights_all = mg.tensor(
+            np.random.randn(concat_size, 4 * hidden_size) * np.sqrt(2. / concat_size)
+        )
+
+        # We also create one large bias vector for all 4 gates.
+        self.bias_all = mg.tensor(np.zeros((1, 4 * hidden_size)))
+        # A common practice is to initialize the forget gate bias to 1.0 to encourage remembering.
+        self.bias_all.data[:, hidden_size : 2 * hidden_size] = 1.0
+
+
+    def forward(self, x_t: mg.Tensor, h_prev: mg.Tensor, C_prev: mg.Tensor):
+        """
+        Performs a forward pass for a single timestep.
+
+        Args:
+            x_t (mg.Tensor): Input for the current timestep, shape (N, input_size).
+            h_prev (mg.Tensor): Hidden state from the previous timestep, shape (N, hidden_size).
+            C_prev (mg.Tensor): Cell state from the previous timestep, shape (N, hidden_size).
+
+        Returns:
+            Tuple[mg.Tensor, mg.Tensor]: The new hidden state (h_next) and cell state (C_next).
+        """
+        # Concatenate previous hidden state and current input
+        concat_input = mg.concatenate([h_prev, x_t], axis=1)
+
+        # Perform a single matrix multiplication for all gates
+        gate_calcs = mg.matmul(concat_input, self.weights_all) + self.bias_all
+
+        # Split the result into four parts for the four gates
+        # f: forget gate, i: input gate, g: candidate gate, o: output gate
+        f_i_g_o = mg.split(gate_calcs, 4, axis=1)
+        f_calc, i_calc, g_calc, o_calc = f_i_g_o[0], f_i_g_o[1], f_i_g_o[2], f_i_g_o[3]
+
+        # Apply activation functions to each gate
+        f_t = activations.sigmoid(f_calc)
+        i_t = activations.sigmoid(i_calc)
+        g_t = activations.tanh(g_calc)
+        o_t = activations.sigmoid(o_calc)
+
+        # Calculate the new cell state and hidden state
+        C_next = (f_t * C_prev) + (i_t * g_t)
+        h_next = o_t * activations.tanh(C_next)
+
+        return h_next, C_next
+
+
+class LSTMLayer(Layer):
+    """
+    An LSTM layer that processes a sequence of inputs by unrolling an LSTMCell
+    over time.
+    """
+    def __init__(self, input_size: int, hidden_size: int, return_sequences: bool = True):
+        super().__init__("LSTM")
+        self.hidden_size = hidden_size
+        self.return_sequences = return_sequences
+
+        # The LSTM layer contains a cell that holds the parameters
+        self.cell = LSTMCell(input_size, hidden_size)
+
+        # Expose the cell's parameters as the layer's parameters for the optimizer
+        self.weights = self.cell.weights_all
+        self.bias = self.cell.bias_all
+        # LSTM layer doesn't need its own use_bias attribute, it's handled by the cell
+        self.use_bias = True 
+
+
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        """
+        Processes a sequence of inputs.
+
+        Args:
+            X (mg.Tensor): The input sequence, shape (N, seq_len, input_size).
+
+        Returns:
+            mg.Tensor: The sequence of hidden states, shape (N, seq_len, hidden_size),
+                       or the final hidden state, shape (N, hidden_size).
+        """
+        batch_size, seq_len, _ = X.shape
+
+        # Initialize hidden state and cell state with zeros
+        h_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)))
+        C_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)))
+
+        # List to store the hidden states from each timestep
+        outputs = []
+
+        # Unroll the cell over the time dimension (seq_len)
+        for t in range(seq_len):
+            # Get the input for the current timestep
+            x_t = X[:, t, :]
+
+            # Run the cell
+            h_next, C_next = self.cell.forward(x_t, h_prev, C_prev)
+
+            # Store the output hidden state
+            outputs.append(h_next)
+
+            # Update states for the next iteration
+            h_prev, C_prev = h_next, C_next
+
+        if self.return_sequences:
+            # Stack all hidden states to create a single output tensor
+            # We need to reshape each h_next to (N, 1, hidden_size) before concatenating
+            reshaped_outputs = [out.reshape(batch_size, 1, self.hidden_size) for out in outputs]
+            return mg.concatenate(reshaped_outputs, axis=1)
+        else:
+            # Return only the last hidden state
+            return outputs[-1]
