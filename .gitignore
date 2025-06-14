@@ -1,4 +1,4 @@
 /.pytest_cache
 /src/__pycache__
 /tests/__pycache__
-/src/helixnet/conv_test.py
+/src/helixnet/__pycache__

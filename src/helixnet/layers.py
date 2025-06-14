@@ -88,17 +88,11 @@ class Dense(Layer):
 
 
     def forward(self, X: np.array):
-        """Perform a forward propagation
-
-        Args:
-            X (np.array): the inputs
-
-        Returns:
-            mg.tensor: the predictions with gradients
-        """
-        return (self.activation(mg.matmul(X, self.weights)) \
-            + self.bias) if self.use_bias else \
-            mg.matmul(X, self.weights)
+        """Perform a forward propagation"""
+        output = mg.matmul(X, self.weights)
+        if self.use_bias:
+            output += self.bias
+        return self.activation(output)
 
     def to_dict(self, inference_only=False) -> dict:
         res = dict()
