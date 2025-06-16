@@ -20,7 +20,7 @@ class Optimiser(ABC):
 
         Args:
             parameter (mg.Tensor): The parameter itself
-            layer (layers.Layer): The parent layer for accesing any attribute
+            layer (layers.Layer): The parent layer for accessing any attribute
         """
 
     def optimise(self, model: models.Sequental) -> None:
