@@ -36,7 +36,16 @@ class Optimiser(ABC):
 
 
 class SGD(Optimiser):
+    """
+    Stochastic Gradient Descend is a powerful optimiser and 
+    is more stable than Adam numerically
+    """
     def __init__(self, lr, decay=None, momentum=None) -> None:
+        """
+        :param float lr: The learn rate of the optimiser
+        :param float decay: The rate of learn rate decay can be ``None`` or ``False`` in order to avoid decay
+        :param float momentum: The momentum but can be ``None`` or ``False`` in order to avoid decay
+        """
         self.lr = self.init_lr = lr
         self.step = 1
         self.decay = decay
@@ -45,15 +54,27 @@ class SGD(Optimiser):
             self.momentums = {}
 
     def get_current_lr(self):
-        # ... (this part is fine)
+        """
+        :return: The learn rate with decay if existed
+        :rtype: float
+        This method returns the learn rate with respect to the current step
+        """
         return self.init_lr * \
             (1. / (1 + self.decay * self.step)) if self.decay else self.lr
 
     def epoch_done(self):
-        """A simple method that should be called after each epoch"""
+        """A simple method that should be called after each epoch.
+        
+        This method should be called after every epoch_done is done in order to inform the optimiser to
+        update it's parameters like weight decay"""
         self.step += 1
 
     def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
+        """
+        :param models.Sequental model: The model that needs to be trained
+        
+        This method performs training sequental models
+        """
         if parameter.grad is None:
             return  # Skip this parameter if it has no gradient
         self.lr = self.get_current_lr()

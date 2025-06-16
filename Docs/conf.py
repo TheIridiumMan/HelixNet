@@ -6,6 +6,8 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 import sphinx_book_theme
+import sys
+from pathlib import Path
 
 html_theme = "sphinx_book_theme"
 html_theme_path = [sphinx_book_theme.get_html_theme_path()]
@@ -14,6 +16,12 @@ project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
 author = 'Amr Fahmy'
 release = '0.1.6'
+import sphinx.ext.autodoc
+extensions = [
+    sphinx.ext.autodoc
+]
+
+sys.path.insert(0, str(Path('..', 'src').resolve()))
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
