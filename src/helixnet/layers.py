@@ -269,12 +269,12 @@ class Conv2D(Layer):
         batch_size = X.shape[0]
         conv_result = nnet.conv_nd(X, self.weights, stride=self.stride,
                                    padding=self.padding)
-        
+
         if self.use_bias:
             # Reshape bias for broadcasting: (C_out,) -> (1, C_out, 1, 1)
             conv_result = conv_result + self.bias.reshape(1, -1, 1, 1)
         return self.activation(conv_result)
-        
+
 
 class Flatten(Layer):
     """
@@ -327,7 +327,6 @@ class LSTMCell(Layer):
     done in a single matrix multiplication.
     """
     def __init__(self, input_size: int, hidden_size: int):
-        super().__init__("LSTMCell")
         self.input_size = input_size
         self.hidden_size = hidden_size
 
@@ -338,12 +337,14 @@ class LSTMCell(Layer):
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
             np.random.randn(concat_size, 4 * hidden_size) * np.sqrt(2. / concat_size)
-        )
+        , dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
-        self.bias_all = mg.tensor(np.zeros((1, 4 * hidden_size)))
+        self.bias_all = mg.tensor(np.zeros((1, 4 * hidden_size)), dtype=mg.float32)
         # A common practice is to initialize the forget gate bias to 1.0 to encourage remembering.
         self.bias_all.data[:, hidden_size : 2 * hidden_size] = 1.0
+
+        super().__init__("LSTMCell", [self.weights_all, self.bias_all])
 
 
     def forward(self, x_t: mg.Tensor, h_prev: mg.Tensor, C_prev: mg.Tensor):
@@ -366,7 +367,7 @@ class LSTMCell(Layer):
 
         # Split the result into four parts for the four gates
         # f: forget gate, i: input gate, g: candidate gate, o: output gate
-        f_i_g_o = mg.split(gate_calcs, 4, axis=1)
+        f_i_g_o = [gate_calcs[0, 0], gate_calcs[0,1] , gate_calcs[0,2], gate_calcs[0,3]]
         f_calc, i_calc, g_calc, o_calc = f_i_g_o[0], f_i_g_o[1], f_i_g_o[2], f_i_g_o[3]
 
         # Apply activation functions to each gate
@@ -388,7 +389,6 @@ class LSTMLayer(Layer):
     over time.
     """
     def __init__(self, input_size: int, hidden_size: int, return_sequences: bool = True):
-        super().__init__("LSTM")
         self.hidden_size = hidden_size
         self.return_sequences = return_sequences
 
@@ -399,7 +399,8 @@ class LSTMLayer(Layer):
         self.weights = self.cell.weights_all
         self.bias = self.cell.bias_all
         # LSTM layer doesn't need its own use_bias attribute, it's handled by the cell
-        self.use_bias = True 
+        self.use_bias = True
+        super().__init__("LSTM", [self.weights, self.bias])
 
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
@@ -416,8 +417,8 @@ class LSTMLayer(Layer):
         batch_size, seq_len, _ = X.shape
 
         # Initialize hidden state and cell state with zeros
-        h_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)))
-        C_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)))
+        h_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
+        C_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
 
         # List to store the hidden states from each timestep
         outputs = []
@@ -444,3 +445,16 @@ class LSTMLayer(Layer):
         else:
             # Return only the last hidden state
             return outputs[-1]
+
+class Embedding(Layer):
+    def __init__(self, vocab_size, dim) -> None:
+        self.vocab_size = vocab_size
+        self.dim = dim
+
+        self.weight = mg.tensor((np.random.rand(vocab_size, dim) - 0.5) / dim,
+                                constant=False)
+
+        super().__init__("Embedding", [self.weight])
+
+    def forward(self, input):
+        return self.weight[input]
