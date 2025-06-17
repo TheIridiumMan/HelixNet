@@ -22,9 +22,11 @@ names: Dict[str, int] = dict()
 
 class Layer(ABC):
     """
-    The Base class for creating layers.
-    type_ (str): The type of the layer
-    trainable_params (List[mg.tensor]): the parameters that needs to be trained
+    :param str type_: The type of layer (e.g. Dense, Convolution). This the type will be the name of layer (e.g. Dense 1, Dense2)
+    :param List[mg.Tensor] trainable_params: A list that consists of the parameters that will be trained by the optimiser. Pass an empty list to indicate thatit doesn't have any trainable parameters
+
+    This the base class of all layers that gives them a unique name if the have a trainable parameters
+    and if they don't they will just use their type name without counting.
     """
     def __init__(self, type_: str, trainable_params: List[mg.Tensor]) -> None:
         self.type = type_
@@ -48,31 +50,45 @@ class Layer(ABC):
         self.forward(*args, **kwargs)
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
-        The forward propagation
+        :param mg.Tensor | np.ndarray X: The data that should be forward propagated 
+        :return: The prediction of the layer
+        :rtype: mg.Tensor
+
+        This the function that should overloaded by the inherited layers
+        And perform the forward propagation logic
         """
     def predict(self, *args, **kwargs) -> mg.Tensor:
-        """This function disables computation graph building
-        Useful for model inference not training.
+        """
+        :param mg.Tensor X: The data of forward pass
+        :return: The prediction of the layer
+        :rtype: mg.Tensor
 
-        Returns:
-            mg.Tensor: the output of the layer
+        This function should in inference not in training because
+        it doesn't track the gradients
         """
         with mg.no_autodiff:
             return self.forward(*args, **kwargs)
     def null_grad(self):
-        """This function resets the gradients of parameters.
-        This method should not be modified by children"""
+        """
+        This function resets the gradients of parameters.
+        This method should not be modified by children
+        :return: This method doesn't return anything
+
+        This function should be used we want to be sure the gradients don't stack up
+        """
         for parameter in self.trainable_params:
             parameter.null_grad()
 
 class Dense(Layer):
-    """A basic dense layer
+    """
+    :param int inputs: The size of inputs.
+    :param int params: The size of parameters. It is the size of the output.
+    :param activation: The activation function that will be used with the layer. Any function or object with ``__call__()`` method.
+    :param bool use_bias: Whether to have a bias or not.
+    :param dtype: The data type of the parameters of the layers also using data types from **MyGrad** is preferred over NumPy
 
-    Args:
-        Layer (inputs): the size of inputs
-        Layer (params): the number of parameters
-        Layer (activation): The activation function with `()` operator
-        Layer (use_bias): whether to include bias or not
+    A simple dense layer that can be used.
+    Also All inherited methods are the same
 
     """
     def __init__(self, inputs: int, params: int, activation,
@@ -91,7 +107,10 @@ class Dense(Layer):
 
 
     def forward(self, X: np.array):
-        """Perform a forward propagation"""
+        """
+        :param mg.Tensor X: the inputs of the layer
+        :return mg.Tensor: The layer predictions
+        """
         output = mg.matmul(X, self.weights)
         if self.use_bias:
             output += self.bias
@@ -227,6 +246,11 @@ def _max_pool(
 class Conv2D(Layer):
     """
     A 2D convolution layer that uses multiple processes to compute the forward pass.
+    :param int input_channel: the expected number of input channels
+    :param int output_channel: The number of channels should the layer output
+    :param int kernel_size: the size of the kernel
+    :param activation: The activation function that will be used with the layer. Any function or object with ``__call__()`` method.
+    :param bool use_bias: Whether to have a bias or not.
 
     Assumes input data is of shape (N, C_in, H, W):
     N: batch size
@@ -279,8 +303,7 @@ class Conv2D(Layer):
 
 class Flatten(Layer):
     """
-    A layer to flatten the input, typically used to transition
-    from convolutional to dense layers.
+    A simple flatten layer that turns it's inputs into a flat layer
     """
     def __init__(self):
         super().__init__("Flatten", [])
@@ -288,6 +311,9 @@ class Flatten(Layer):
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
+        :param mg.Tensor X: The tensor that will be flattend
+        :return mg.Tensor: A flat tensor
+
         Takes an input of shape (N, C, H, W) and flattens it
         to a shape of (N, C*H*W).
         """
@@ -298,6 +324,8 @@ class Flatten(Layer):
 
 class MaxPooling2D(Layer):
     """
+    :param int | Tuple[int, int] pool_size: the pool size can be integer for square pools and can be a tuple for rectangular tuples
+
     A layer to perform max pooling over a 4D input (N, C, H, W).
     """
     def __init__(self, pool_size, stride=None):
