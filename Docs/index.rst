@@ -22,6 +22,6 @@ Just plug and play.
    :caption: Contents:
 
    installation
-   optimiser
+   optimisers
    layers
 

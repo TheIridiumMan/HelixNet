@@ -78,7 +78,8 @@ class Dense(Layer):
     def __init__(self, inputs: int, params: int, activation,
     use_bias: bool = True, dtype = mg.float32) -> None:
         he_stddev = np.sqrt(2. / inputs)
-        self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False)
+        self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False,
+                                 dtype=dtype)
         self.use_bias = use_bias
         self.activation = activation
         if self.use_bias:

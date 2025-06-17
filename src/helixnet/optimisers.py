@@ -8,6 +8,10 @@ from . import layers
 
 
 class Optimiser(ABC):
+    """
+    An Abstract class that is used by other optimisers and it also performs
+    the primary training loop
+    """
     def __init__(self) -> None:
         self.step = 1
 
@@ -15,8 +19,9 @@ class Optimiser(ABC):
         """A simple method should be called after every epoch"""
         self.step += 1
 
-    def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer, index: int) -> None:
-        """This function takes parameters one by one
+    def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
+        """This function takes parameters one by one and must be
+        inhereited by the children
 
         Args:
             parameter (mg.Tensor): The parameter itself
@@ -25,7 +30,7 @@ class Optimiser(ABC):
 
     def optimise(self, model: models.Sequental) -> None:
         """This method trains models and calls optimise_param
-        for every parameter in the layer
+        for every parameter in the layer and it's called when the training happens
 
         Args:
             model (models.Sequental): The model that needs to be trained
@@ -73,7 +78,7 @@ class SGD(Optimiser):
 
     def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
         """
-        :param models.Sequental model: The model that needs to be trained
+        :param mg.Tensor model: The model that needs to be trained
         
         This method performs training sequental models
         """
@@ -92,6 +97,14 @@ class SGD(Optimiser):
 
 
 class Adam(Optimiser):
+    """
+    Adam a very good optimiser can converge quickly but less stable numerically
+
+    :param float lr: The learn rate of the optimiser
+    :param float decay: The rate of learn rate decay can be
+        ``None`` in order to avoid decay
+    
+    """
     def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999) -> None:
         self.lr = self.init_lr = learning_rate
@@ -104,11 +117,18 @@ class Adam(Optimiser):
         self.cache = {}
 
     def get_current_lr(self) -> float:
+        """
+        This method returns the learn rate with respect to the current step
+        
+        :return: The learn rate with decay if existed
+        :rtype: float
+        """
         return self.init_lr * \
             (1. / (1 + self.decay * self.iters)) if self.decay else self.lr
     
     def epoch_done(self) -> None:
-        """Should be called after every parameter for updating it's internal values"""
+        """This method should be called after every epoch_done is done in order to inform the optimiser to
+    update it's parameters like weight decay"""
         self.iters += 1
 
     def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
