@@ -364,11 +364,16 @@ class LSTMCell(Layer):
 
         # Perform a single matrix multiplication for all gates
         gate_calcs = mg.matmul(concat_input, self.weights_all) + self.bias_all
-
-        # Split the result into four parts for the four gates
-        # f: forget gate, i: input gate, g: candidate gate, o: output gate
-        f_i_g_o = [gate_calcs[0, 0], gate_calcs[0,1] , gate_calcs[0,2], gate_calcs[0,3]]
-        f_calc, i_calc, g_calc, o_calc = f_i_g_o[0], f_i_g_o[1], f_i_g_o[2], f_i_g_o[3]
+        
+        # --- FIX STARTS HERE ---
+        # Instead of mg.split, use standard tensor slicing.
+        # This is the correct and idiomatic way in MyGrad.
+        hs = self.hidden_size
+        f_calc = gate_calcs[:, :hs]
+        i_calc = gate_calcs[:, hs : 2 * hs]
+        g_calc = gate_calcs[:, 2 * hs : 3 * hs]
+        o_calc = gate_calcs[:, 3 * hs :]  # Slicing to the end is robust
+        # --- FIX ENDS HERE ---
 
         # Apply activation functions to each gate
         f_t = activations.sigmoid(f_calc)

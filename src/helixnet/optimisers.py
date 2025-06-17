@@ -57,6 +57,7 @@ class SGD(Optimiser):
         """
         :return: The learn rate with decay if existed
         :rtype: float
+        
         This method returns the learn rate with respect to the current step
         """
         return self.init_lr * \
@@ -65,8 +66,9 @@ class SGD(Optimiser):
     def epoch_done(self):
         """A simple method that should be called after each epoch.
         
-        This method should be called after every epoch_done is done in order to inform the optimiser to
-        update it's parameters like weight decay"""
+        This method should be called after every epoch is done in order to inform the optimiser to
+        update it's parameters like weight decay
+        """
         self.step += 1
 
     def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
@@ -89,7 +91,7 @@ class SGD(Optimiser):
             parameter.data -= self.lr * parameter.grad
 
 
-class Adam:
+class Adam(Optimiser):
     def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999) -> None:
         self.lr = self.init_lr = learning_rate

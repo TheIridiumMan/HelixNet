@@ -16,17 +16,12 @@ project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
 author = 'Amr Fahmy'
 release = '0.1.6'
-import sphinx.ext.autodoc
+
 extensions = [
-    sphinx.ext.autodoc
+    "sphinx.ext.autodoc"
 ]
 
 sys.path.insert(0, str(Path('..', 'src').resolve()))
-
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
-
-extensions = []
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
