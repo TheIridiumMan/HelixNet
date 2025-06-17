@@ -44,7 +44,7 @@ class Layer(ABC):
     def __call__(self, *args, **kwargs) -> mg.Tensor:
         """
         This operator should perform a forward propagation
-        """
+        """  # This behaviour will change 
         self.forward(*args, **kwargs)
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
