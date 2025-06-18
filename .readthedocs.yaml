@@ -13,7 +13,7 @@ build:
 # Define the Python installation steps
 python:
   install:
-- method: pip
+  method: pip
       path: .
       extra_requirements:
         docs
