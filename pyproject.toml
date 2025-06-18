@@ -4,7 +4,6 @@ requires = ["setuptools", "wheel"]
 [project]
 name = "HelixNet"
 version = "0.1.6"
-summary = "A powerful simple Neural Network building blocks based on MyGrad"
 authors = [
     { name = "Amr Fahmy" },
 ]
