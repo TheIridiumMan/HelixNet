@@ -1,2 +1,6 @@
 [build-system]
 requires = ["setuptools", "wheel"]
+dependencies = [
+    "numpy",
+    "mygrad"
+]

@@ -14,7 +14,9 @@ import helixnet.models as models
 
 # --- 1. SETUP & DATA PREPARATION ---
 print("[bold yellow]Loading and preparing MNIST data for CNN...[/bold yellow]")
-df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")
+# The dataset that is used here is from
+#   https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
+df = pd.read_csv("train.csv")
 train, test = train_test_split(df, test_size=1024, random_state=42)
 
 # --- 2. MODEL CONFIGURATION: Build the CNN ---

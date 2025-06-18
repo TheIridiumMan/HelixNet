@@ -1,12 +1,10 @@
 import numpy as np
 import mygrad as mg
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
-from mygrad.computational_graph import build_graph
 
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, track
+
+from rich.progress import track
 from rich import print
 
 import helixnet.layers as layers
@@ -15,7 +13,9 @@ import helixnet.activations as activations
 import helixnet.models as models
 
 print("[bold yellow]Libraries are imported loading data[/bold yellow]")
-df = pd.read_csv("K:/Redmi 9e/Data Analysis/MNIST Digits/train.csv")
+# The dataset that is used here is from
+#   https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
+df = pd.read_csv("train.csv")
 print("[bold yellow]Data loaded[/bold yellow]")
 train, test = train_test_split(df, test_size=0.2)
 
@@ -78,9 +78,3 @@ predictions = np.argmax(test_logits.data, axis=1)
 accuracy = (test["label"].values == predictions).mean()
 
 print(f"[bold purple] Final Test Accuracy: {accuracy:.2%} :tada:[/]")
-
-plt.plot(loss_history)
-plt.title("Training Loss Over Time")
-plt.xlabel("Training Step")
-plt.ylabel("Softmax Cross-Entropy Loss")
-plt.show()
