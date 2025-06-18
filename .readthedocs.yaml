@@ -6,13 +6,9 @@ version: 2
 
 # Set the version of Python and other tools you might need
 build:
-  os: "ubuntu-22.04"
+  os: ubuntu-24.04
   tools:
     python: "3.9"
-
-# Tell Sphinx where to find your configuration
-sphinx:
-  configuration: Docs/conf.py
 
 # Define the Python installation steps
 python:
@@ -24,3 +20,6 @@ python:
     # Next, install the extra requirements needed ONLY for building the docs
     - requirements:
       - docs
+# Tell Sphinx where to find your configuration
+sphinx:
+  configuration: Docs/conf.py
