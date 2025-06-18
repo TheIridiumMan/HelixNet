@@ -5,7 +5,7 @@ Using Pip
 ---------
 Go to the directory of sources and start your terminal there or ``cd`` to it.
 Because currently we don't have `PyPI`_ package yet.
-Also you should a have ``setuptools`` and ``wheel`` for building the wheel
+Also you should have ``setuptools`` and ``wheel`` for building the wheel
 
 
 for ``setuptools`` and ``wheel`` and if you have them already you can skip them

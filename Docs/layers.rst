@@ -8,11 +8,10 @@ Here we have our building blocks **The Layers**
 
 .. warning:: 
     Don't attempt to modify :class:`helixnet.layers.Layer.trainable_params`
-    because this might cause that the optimiser loses it's data
+    because this might cause the optimizer to lose its state data (e.g., momentum)
 
     Also it's not recommended to overload :class:`helixnet.layers.Layer.predict`
-    and :class:`helixnet.layers.Layer.null_grad` in order to have consistent
-    behavior
+    and :class:`helixnet.layers.Layer.null_grad` to ensure consistent behavior across the framework
 
 .. autoclass:: helixnet.layers.Dense
     :members:

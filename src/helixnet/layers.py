@@ -22,10 +22,10 @@ names: Dict[str, int] = dict()
 
 class Layer(ABC):
     """
-    :param str type_: The type of layer (e.g. Dense, Convolution). This the type will be the name of layer (e.g. Dense 1, Dense2)
-    :param List[mg.Tensor] trainable_params: A list that consists of the parameters that will be trained by the optimiser. Pass an empty list to indicate thatit doesn't have any trainable parameters
+    :param str type_: The type of layer (e.g. Dense, Convolution). This type will be used to generate the name of layer (e.g. Dense 1, Dense2)
+    :param List[mg.Tensor] trainable_params: A list that consists of the parameters that will be trained by the optimiser. Pass an empty list to indicate that it has no trainable parameters
 
-    This the base class of all layers that gives them a unique name if the have a trainable parameters
+    This the base class of all layers that gives them a unique name if they have trainable parameters
     and if they don't they will just use their type name without counting.
     """
     def __init__(self, type_: str, trainable_params: List[mg.Tensor]) -> None:
