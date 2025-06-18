@@ -12,7 +12,7 @@ See the examples in example directory.
 ## Using Pip
 
 Go to the directory of sources and start your terminal there or ``cd`` to it.
-Because currently we don't have `PyPI`_ package yet.
+Because currently we don't have `PyPI` package yet.
 Also you should have ``setuptools`` and ``wheel`` for building the wheel
 
 
