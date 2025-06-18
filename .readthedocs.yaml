@@ -13,13 +13,9 @@ build:
 # Define the Python installation steps
 python:
   install:
-    # First, install the project itself (HelixNet) in editable mode
-    - method: pip
+- method: pip
       path: .
-    
-    # Next, install the extra requirements needed ONLY for building the docs
-    - requirements:
-      - docs
-# Tell Sphinx where to find your configuration
+      extra_requirements:
+        - docs
 sphinx:
-  configuration: Docs/conf.py
+  configuration: docs/conf.py
