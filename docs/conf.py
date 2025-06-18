@@ -7,9 +7,10 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 import sys
 from pathlib import Path
+import sphinx_book_theme
 
 html_theme = "bizstyle"
-#html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme_path = [sphinx_book_theme.get_html_theme_path()]
 
 project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
