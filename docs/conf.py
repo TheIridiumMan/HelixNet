@@ -5,12 +5,11 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import sphinx_rtd_theme
 import sys
 from pathlib import Path
 
-html_theme = "sphinx_rtd_theme"
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "bizstyle"
+#html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
