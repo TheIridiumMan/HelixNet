@@ -12,7 +12,7 @@ HelixNet is designed to be a transparent and easy-to-understand tool for learnin
 *   **Extensible by Design:** A clean, object-oriented structure (`Layer`, `Optimiser`) makes it easy to create your own custom layers and optimizers.
 *   **Modern Architecture:** Includes common layers like `Dense`, `Conv2D`, `MaxPooling2D`, `LSTM`, and `Embedding`.
 *   **Powerful Optimizers:** Comes with robust implementations of `SGD` (with momentum) and `Adam`.
-*   **Full Documentation:** Comprehensive documentation available [here](link_to_your_docs_once_hosted).
+*   **Full Documentation:** Comprehensive documentation available [here](https://helixnet.readthedocs.io/en/latest/).
 
 ## Installation
 
