@@ -1,7 +1,7 @@
 """
 This module contains layers.
 """
-from typing import List, Dict, Optional
+from typing import List, Dict, Tuple, Optional
 from abc import ABC
 import os
 from concurrent.futures import ProcessPoolExecutor
@@ -79,6 +79,15 @@ class Layer(ABC):
         for parameter in self.trainable_params:
             parameter.null_grad()
 
+    def output_shape(self, prev_shape: Optional[Tuple[int]]) -> Tuple[int]:
+        """
+        A simple method that gets the shape of layer's output
+
+        This function should be overloaded in order to get the shape
+        """
+
+        return self.predict(np.zeros((1, *prev_shape))).shape[1:]
+
 class Dense(Layer):
     """
     :param int inputs: The size of inputs.
@@ -89,21 +98,31 @@ class Dense(Layer):
 
     A simple dense layer that can be used.
     Also All inherited methods are the same
-
     """
     def __init__(self, inputs: int, params: int, activation,
     use_bias: bool = True, dtype = mg.float32) -> None:
         he_stddev = np.sqrt(2. / inputs)
-        self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False,
-                                 dtype=dtype)
         self.use_bias = use_bias
         self.activation = activation
-        if self.use_bias:
-            self.bias = mg.tensor(np.random.randn(1, params), constant=False,
-                                  dtype=dtype)
-            super().__init__("Dense", [self.weights, self.bias])
+        self.out_sh = params
+        if isinstance(params, (tuple, list)):
+            self.weights = mg.tensor(np.random.randn(inputs, *params) * he_stddev, constant=False,
+                                     dtype=dtype)
+            if self.use_bias:
+                self.bias = mg.tensor(np.random.randn(1, *params), constant=False,
+                                    dtype=dtype)
+                super().__init__("Dense", [self.weights, self.bias])
+            else:
+                super().__init__("Dense", [self.weights])
         else:
-            super().__init__("Dense", [self.weights])
+            self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False,
+                                     dtype=dtype)
+            if self.use_bias:
+                self.bias = mg.tensor(np.random.randn(1, params), constant=False,
+                                    dtype=dtype)
+                super().__init__("Dense", [self.weights, self.bias])
+            else:
+                super().__init__("Dense", [self.weights])
 
 
     def forward(self, X: np.array):
@@ -127,6 +146,9 @@ class Dense(Layer):
         else:
             raise NotImplementedError("Creating model with training data is not"
                                       "Supported yet. Use pickle instead")
+
+    def output_shape(self, other_shape) -> Tuple[int]:
+        return (self.out_sh,)
 
 # Well class _MaxPoolND taken from MyGrad.nnet implemenation but it doesn't use
 # Floor division so I had to create mine with floor division
@@ -289,7 +311,10 @@ class Conv2D(Layer):
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
-        Performs a forward pass, splitting the batch across multiple processes.
+        Performs a forward pass.
+
+        Also the images needs t be in the following shape
+        (batch_size, color_channels, length, width)
         """
         batch_size = X.shape[0]
         conv_result = nnet.conv_nd(X, self.weights, stride=self.stride,
@@ -300,14 +325,16 @@ class Conv2D(Layer):
             conv_result = conv_result + self.bias.reshape(1, -1, 1, 1)
         return self.activation(conv_result)
 
+    def output_shape(self, prev_shape: Optional[Tuple[int]]):
+        return self.predict(np.zeros((1, *prev_shape))).shape[1:]
+
 
 class Flatten(Layer):
     """
     A simple flatten layer that turns it's inputs into a flat layer
     """
-    def __init__(self):
+    def __init__(self, input_shape: Optional[Tuple[int]] = None):
         super().__init__("Flatten", [])
-        self.input_shape = None
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -321,6 +348,9 @@ class Flatten(Layer):
         # The first dimension (N, batch size) is preserved.
         # The rest of the dimensions are flattened.
         return X.reshape(self.input_shape[0], -1)
+
+    def output_shape(self, input_shape) -> Tuple[int]:
+        return (np.array(input_shape)[0:].prod(),)
 
 class MaxPooling2D(Layer):
     """
@@ -492,3 +522,18 @@ class Embedding(Layer):
 
     def forward(self, input):
         return self.weight[input]
+
+class InputShape(Layer):
+    """
+    A very simple layer designed just for model designing
+    where you might need in order to determine the model shapes
+    """
+    def __init__(self, shape: List[int]) -> None:
+        self.shape = shape
+        super().__init__("Input Shape", [])
+    
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        return X
+    
+    def output_shape(self, prev_shape: Optional[Tuple[int]]) -> Tuple[int]:
+        return self.shape
