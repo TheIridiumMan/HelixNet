@@ -32,6 +32,7 @@ class Layer(ABC):
         self.type = type_
         # self.total_params = total_params
         self.trainable_params: List[mg.Tensor] = trainable_params
+        # TODO: Add parameters testing (e.g. they are tensors no ndarray)
         if trainable_params != []:
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
@@ -338,10 +339,6 @@ class Conv2D(Layer):
             # Reshape bias for broadcasting: (C_out,) -> (1, C_out, 1, 1)
             conv_result = conv_result + self.bias.reshape(1, -1, 1, 1)
         return self.activation(conv_result)
-
-    def output_shape(self, prev_shape: Optional[Tuple[int]]):
-        """The output shape of the convolution layer"""
-        return self.predict(np.zeros((1, *prev_shape))).shape[1:]
 
 
 class Flatten(Layer):
