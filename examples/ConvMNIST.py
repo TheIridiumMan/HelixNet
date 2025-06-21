@@ -31,7 +31,7 @@ POOL_SIZE = 2
 DENSE_UNITS = 128
 OUTPUT_CLASSES = 10
 
-model = models.Sequental([
+model = models.Sequential([
     # Input shape: (N, 1, 28, 28)
     layers.Conv2D(input_channels=INPUT_CHANNELS, output_channels=CONV1_CHANNELS, kernel_size=KERNEL_SIZE, activation=activations.ReLU),
     # Output shape: (N, 16, 26, 26)

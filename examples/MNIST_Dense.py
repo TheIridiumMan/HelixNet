@@ -25,7 +25,7 @@ train, test = train_test_split(df, test_size=0.2)
 lr1 = layers.Dense(784, 256, activation=activations.ReLU)
 lr2 = layers.Dense(256, 256, activation=activations.ReLU)
 lr3 = layers.Dense(256, 10, activation=(lambda x: x))
-model = models.Sequental([lr1, lr2, lr3]) # Simplified model for faster demonstration
+model = models.Sequential([lr1, lr2, lr3]) # Simplified model for faster demonstration
 
 optim = optimisers.SGD(0.05, False, 0.9)
 print("[bold yellow]layers initiated and connected successfully[/]")

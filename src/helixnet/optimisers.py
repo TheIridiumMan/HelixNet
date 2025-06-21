@@ -28,12 +28,12 @@ class Optimiser(ABC):
             layer (layers.Layer): The parent layer for accessing any attribute
         """
 
-    def optimise(self, model: models.Sequental) -> None:
+    def optimise(self, model: models.Sequential) -> None:
         """This method trains models and calls optimise_param
         for every parameter in the layer and it's called when the training happens
 
         Args:
-            model (models.Sequental): The model that needs to be trained
+            model (models.Sequential): The model that needs to be trained
         """
         for layer in model.layers:
             for parameter in layer.trainable_params:
@@ -80,7 +80,7 @@ class SGD(Optimiser):
         """
         :param mg.Tensor model: The model that needs to be trained
         
-        This method performs training sequental models
+        This method performs training sequential models
         """
         if parameter.grad is None:
             return  # Skip this parameter if it has no gradient

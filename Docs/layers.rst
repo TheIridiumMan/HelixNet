@@ -20,5 +20,19 @@ Here we have our building blocks **The Layers**
     :members:
 
 .. autoclass:: helixnet.layers.MaxPooling2D
+    :members:
 
 .. autoclass:: helixnet.layers.Flatten
+    :members:
+
+.. autoclass:: helixnet.layers.Embedding
+    :members:
+
+.. autoclass:: helixnet.layers.InputShape
+    :members:
+
+.. autoclass:: helixnet.layers.LSTMLayer
+    :members:
+    
+.. autoclass:: helixnet.layers.LSTMCell
+    :members:

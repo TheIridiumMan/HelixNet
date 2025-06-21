@@ -29,7 +29,7 @@ lr1 = layers.Dense(2, 128, activation=activations.ReLU, dtype=mg.float64)
 lr2 = layers.Dense(128, 64, activation=activations.ReLU, dtype=mg.float64)
 lr3 = layers.Dense(64, 64, activation=activations.ReLU, dtype=mg.float64)
 lr4 = layers.Dense(64, 3, activation=(lambda x: x), dtype=mg.float64)
-model = models.Sequental([lr1, lr2, lr3, lr4])
+model = models.Sequential([lr1, lr2, lr3, lr4])
 optim = optimisers.SGD(0.01, 0.0001)
 
 losses = []
