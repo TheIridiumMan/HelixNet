@@ -53,9 +53,7 @@ class Layer(ABC):
         :param mg.Tensor | np.ndarray X: The data that should be forward propagated 
         :return: The prediction of the layer
         :rtype: mg.Tensor
-
-        This the function that should overloaded by the inherited layers
-        And perform the forward propagation logic
+        this method performs forward propagation
         """
     def predict(self, *args, **kwargs) -> mg.Tensor:
         """
@@ -84,6 +82,8 @@ class Layer(ABC):
         A simple method that gets the shape of layer's output
 
         This function should be overloaded in order to get the shape
+        but still can work on it's own but it'll need previous shapes
+        in order to work properly
         """
 
         return self.predict(np.zeros((1, *prev_shape))).shape[1:]
@@ -275,10 +275,14 @@ class Conv2D(Layer):
     :param bool use_bias: Whether to have a bias or not.
 
     Assumes input data is of shape (N, C_in, H, W):
-    N: batch size
-    C_in: number of input channels
-    H: height of the input feature map
-    W: width of the input feature map
+
+    **N**: batch size
+
+    **C_in**: number of input channels
+
+    **H**: height of the input feature map
+
+    **W**: width of the input feature map
     """
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
                  stride=1, padding=0, activation=None, use_bias: bool = True):
@@ -326,6 +330,7 @@ class Conv2D(Layer):
         return self.activation(conv_result)
 
     def output_shape(self, prev_shape: Optional[Tuple[int]]):
+        """The output shape of the convolution layer"""
         return self.predict(np.zeros((1, *prev_shape))).shape[1:]
 
 
@@ -338,7 +343,7 @@ class Flatten(Layer):
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
-        :param mg.Tensor X: The tensor that will be flattend
+        :param mg.Tensor X: The tensor that will be flattened
         :return mg.Tensor: A flat tensor
 
         Takes an input of shape (N, C, H, W) and flattens it
@@ -356,7 +361,7 @@ class MaxPooling2D(Layer):
     """
     :param int | Tuple[int, int] pool_size: the pool size can be integer for square pools and can be a tuple for rectangular tuples
 
-    A layer to perform max pooling over a 4D input (N, C, H, W).
+    A layer to perform max pooling over a 4D input (No_samples, Channels, Height, Width).
     """
     def __init__(self, pool_size, stride=None):
         super().__init__("MaxPooling2D", [])
@@ -511,6 +516,10 @@ class LSTMLayer(Layer):
             return outputs[-1]
 
 class Embedding(Layer):
+    """Word embedding layer
+    
+    :param int vocab_size: The size of vocabulary
+    :param int dim: the number of output dimensions"""
     def __init__(self, vocab_size, dim) -> None:
         self.vocab_size = vocab_size
         self.dim = dim
@@ -528,12 +537,14 @@ class InputShape(Layer):
     A very simple layer designed just for model designing
     where you might need in order to determine the model shapes
     """
-    def __init__(self, shape: List[int]) -> None:
-        self.shape = shape
+    def __init__(self, shape: Tuple[int]) -> None:
+        self.shape = tuple(shape)
         super().__init__("Input Shape", [])
-    
+
     def forward(self, X: mg.Tensor) -> mg.Tensor:
+        """Just returns the inputs"""
         return X
-    
+
     def output_shape(self, prev_shape: Optional[Tuple[int]]) -> Tuple[int]:
+        """returns the input shape of layers"""
         return self.shape
