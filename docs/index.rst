@@ -24,4 +24,5 @@ Just plug and play.
    installation
    optimisers
    layers
+   models
 
