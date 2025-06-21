@@ -53,6 +53,7 @@ class Layer(ABC):
         :param mg.Tensor | np.ndarray X: The data that should be forward propagated 
         :return: The prediction of the layer
         :rtype: mg.Tensor
+
         this method performs forward propagation
         """
     def predict(self, *args, **kwargs) -> mg.Tensor:
@@ -77,7 +78,7 @@ class Layer(ABC):
         for parameter in self.trainable_params:
             parameter.null_grad()
 
-    def output_shape(self, prev_shape: Optional[Tuple[int]]) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = ()) -> Tuple[int]:
         """
         A simple method that gets the shape of layer's output
 
@@ -85,8 +86,17 @@ class Layer(ABC):
         but still can work on it's own but it'll need previous shapes
         in order to work properly
         """
-
         return self.predict(np.zeros((1, *prev_shape))).shape[1:]
+
+    def total_params(self):
+        """This method can calculate the number of parameters in each layer
+
+        :rtype: int
+        """
+        params = 0
+        for parameter in self.trainable_params:
+            params += np.array(parameter.shape).prod()
+        return params
 
 class Dense(Layer):
     """

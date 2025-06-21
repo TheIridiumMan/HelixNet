@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import mygrad as mg
@@ -26,7 +26,7 @@ class Sequential:
             x = layer.forward(x)
         return x
 
-    def get_names(self):
+    def get_names(self) -> List[str]:
         """Returns a list of layers names
 
         Returns:
@@ -34,32 +34,33 @@ class Sequential:
         """
         return [layer.name for layer in self.layers]
 
-    def null_grads(self):
+    def null_grads(self) -> None:
         """Reset the gradients of every layer"""
         for layer in self.layers:
             layer.null_grad()
 
-    def output_shape(self):
+    def output_shape(self) -> Tuple[int]:
         """A simple function that shows the model's last layer's output shape"""
         shape = tuple()
         for layer in self.layers:
             shape = layer.output_shape(shape)
         return shape
 
-    def add(self, layer: layers.Layer):
+    def add(self, layer: layers.Layer) -> None:
         """This function can append layers to the model
 
         :param layer.Layer layer: The layer that will be appended to the end of the model"""
         self.layers.append(layer)
 
-    def summary(self):
+    def summary(self) -> None:
         """This method prints the model summary which contains the name of every layer and it's shape"""
-        print("Layer", 11 * " ", "Output Shape", 10 * " ")
-        print("=" * 40)
+        print("Layer", 11 * " ", "Output Shape", 10 * " ", "Total Parameters")
+        print("=" * 60)
         shape = []
         for layer in self.layers:
             shape = layer.output_shape(shape)
-            print(layer.name.ljust(17), ("(N, " + str(shape)[1:]))
+            print(layer.name.ljust(17), ("(N, " + str(shape)[1:]).ljust(23),
+                  layer.total_params())
 
     def predict(self, x: mg.Tensor) -> mg.Tensor:
         """This method let the model predict without building computational graph
