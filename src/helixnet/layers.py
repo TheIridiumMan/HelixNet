@@ -158,10 +158,10 @@ class Dense(Layer):
             raise NotImplementedError("Creating model with training data is not"
                                       "Supported yet. Use pickle instead")
 
-    def output_shape(self, other_shape) -> Tuple[int]:
+    def output_shape(self, other_shape = None) -> Tuple[int]:
         return (self.out_sh,)
 
-# Well class _MaxPoolND taken from MyGrad.nnet implemenation but it doesn't use
+# Well class _MaxPoolND taken from MyGrad.nnet implementation but it doesn't use
 # Floor division so I had to create mine with floor division
 class _MaxPoolND(Operation):
     def __call__(self, x, pool, stride):
