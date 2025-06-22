@@ -112,28 +112,19 @@ class Dense(Layer):
     """
     def __init__(self, inputs: int, params: int, activation,
     use_bias: bool = True, dtype = mg.float32) -> None:
-        he_stddev = np.sqrt(2. / inputs)
+        he_stddev = np.sqrt(2. / np.array(inputs).sum())
         self.use_bias = use_bias
         self.activation = activation
-        self.out_sh = params
-        if isinstance(params, (tuple, list)):
-            self.weights = mg.tensor(np.random.randn(inputs, *params) * he_stddev, constant=False,
+        self.out_sh = tuple([params]) if isinstance(params, int) else params
+        inputs = tuple([inputs]) if isinstance(inputs, int) else inputs
+        self.weights = mg.tensor(np.random.randn(*inputs, *self.out_sh) * he_stddev, constant=False,
                                      dtype=dtype)
-            if self.use_bias:
-                self.bias = mg.tensor(np.random.randn(1, *params), constant=False,
+        if self.use_bias:
+            self.bias = mg.tensor(np.random.randn(1, *self.out_sh), constant=False,
                                     dtype=dtype)
-                super().__init__("Dense", [self.weights, self.bias])
-            else:
-                super().__init__("Dense", [self.weights])
+            super().__init__("Dense", [self.weights, self.bias])
         else:
-            self.weights = mg.tensor(np.random.randn(inputs, params) * he_stddev, constant=False,
-                                     dtype=dtype)
-            if self.use_bias:
-                self.bias = mg.tensor(np.random.randn(1, params), constant=False,
-                                    dtype=dtype)
-                super().__init__("Dense", [self.weights, self.bias])
-            else:
-                super().__init__("Dense", [self.weights])
+            super().__init__("Dense", [self.weights])
 
 
     def forward(self, X: np.array):
@@ -159,7 +150,7 @@ class Dense(Layer):
                                       "Supported yet. Use pickle instead")
 
     def output_shape(self, other_shape = None) -> Tuple[int]:
-        return (self.out_sh,)
+        return self.out_sh
 
 # Well class _MaxPoolND taken from MyGrad.nnet implementation but it doesn't use
 # Floor division so I had to create mine with floor division

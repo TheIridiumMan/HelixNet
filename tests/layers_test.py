@@ -67,14 +67,14 @@ class DenseTests(unittest.TestCase):
         self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 64))
         mat = layers.Dense((2, 3, 4), 64, lambda x: x, use_bias=True)
         self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 64))
-        self.assertEqual(mat.trainable_params[1].data.shape, (64,))
+        self.assertEqual(mat.trainable_params[1].data.shape, (1, 64))
 
     def test_tensor_in_out_init(self):
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=False)
         self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=True)
         self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
-        self.assertEqual(mat.trainable_params[1].data.shape, (5, 3, 4))
+        self.assertEqual(mat.trainable_params[1].data.shape, (1, 5, 3, 4))
 
     def test_matrix_forward(self):
         mat = layers.Dense(64, 32, lambda x: x, use_bias=False)
@@ -87,7 +87,7 @@ class DenseTests(unittest.TestCase):
 
     def test_tensor_forward(self):
         mat = layers.Dense((64, 86), (32, 45), lambda x: x, use_bias=False)
-        result = mat.forward(np.ones((4, 64, 86)))
+        result = mat.forward(np.ones((4, 64, 32)))
         self.assertEqual(result.shape, (4, 64, 86))
         loss_val = loss.MeanAbsError(result, np.zeros((4, 32, 45)))
         loss_val.backward()
