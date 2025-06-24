@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "HelixNet"
-version = "0.1.6"
+version = "0.1.8"
 authors = [
     { name = "Amr Fahmy" },
 ]

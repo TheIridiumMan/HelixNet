@@ -57,6 +57,7 @@ class Layer(ABC):
 
         this method performs forward propagation
         """
+    @mg.no_autodiff
     def predict(self, *args, **kwargs) -> mg.Tensor:
         """
         :param mg.Tensor X: The data of forward pass
@@ -312,9 +313,6 @@ class Conv2D(Layer):
         self.padding = padding
         self.activation = activation
 
-        # Use all available CPU cores by default
-        self.num_workers = os.cpu_count()
-
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
         Performs a forward pass.
@@ -533,16 +531,24 @@ class Embedding(Layer):
 class InputShape(Layer):
     """
     A very simple layer designed just for model designing
-    where you might need in order to determine the model shapes
+    where you might need in order to determine the model shapes and
+    it can make sure the input shape is correct where it the shape of data is
+    (X, D1, D2, D3, ... ) where it ignores the the first dimension because it is
+    the number of samples.
     """
-    def __init__(self, shape: Tuple[int]) -> None:
+    def __init__(self, shape: Tuple[int],
+                 ensure_shape: Optional[bool] = True) -> None:
         self.shape = tuple(shape)
+        self.ensure_shape = ensure_shape
         super().__init__("Input Shape", [])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """Just returns the inputs"""
+        if self.ensure_shape and self.shape != X.shape[1:]:
+            raise ValueError(f"The input shape of {X.shape} doesn't match "
+                             f"the desired {self.shape}")
         return X
 
-    def output_shape(self, prev_shape: Optional[Tuple[int]]) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = []) -> Tuple[int]:
         """returns the input shape of layers"""
         return self.shape

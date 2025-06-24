@@ -57,10 +57,15 @@ class Sequential:
         print("Layer", 11 * " ", "Output Shape", 10 * " ", "Total Parameters")
         print("=" * 60)
         shape = []
+        tot_params = 0
         for layer in self.layers:
             shape = layer.output_shape(shape)
+            params = layer.total_params()
+            tot_params += params
             print(layer.name.ljust(17), ("(N, " + str(shape)[1:]).ljust(23),
-                  layer.total_params())
+                  params)
+        print("=" * 60)
+        print(f"Total parameters {tot_params}")
 
     def predict(self, x: mg.Tensor) -> mg.Tensor:
         """This method let the model predict without building computational graph

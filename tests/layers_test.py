@@ -110,6 +110,24 @@ class DenseTests(unittest.TestCase):
         mat = layers.Dense( 64,(2, 3, 4), lambda x: x, use_bias=True)
         self.assertEqual(mat.output_shape(), (2,3,4))
 
+class MiscLayerTest(unittest.TestCase):
+    def test_input_shape_outputShape(self):
+        layer = layers.InputShape([1, 28, 28])
+        self.assertEqual(layer.output_shape(), (1, 28, 28))
 
+    def test_input_shape_output(self):
+        layer = layers.InputShape([1, 28, 28])
+        X = np.random.randn(10, 1, 28, 28)
+        output = layer.forward(X)
+        self.assert_((X == output).all())
+
+    def test_input_shape_strictness(self):
+        with self.assertRaises(ValueError):
+            layer = layers.InputShape([1, 28, 28])
+            X = np.random.randn(10, 50, 16, 28)
+            output = layer.forward(X)
+        layer = layers.InputShape([1, 28, 28])
+        X = np.random.randn(10, 1, 28, 28)
+        output = layer.forward(X)
 if __name__ == '__main__':
     unittest.main()
