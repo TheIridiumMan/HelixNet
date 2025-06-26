@@ -12,6 +12,7 @@ A small, extensible, lightweight and powerful building blocks that can build ama
 complexity and can run
 on a potato hardware.
 
+#. Lightweight and Fast
 #. No need to compile 2000+ C++ files.
 #. No need to clone 1GB+ Repos.
 
@@ -25,4 +26,5 @@ Just plug and play.
    optimisers
    layers
    models
-
+   preprocessing
+   DIY

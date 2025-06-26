@@ -150,3 +150,48 @@ class Adam(Optimiser):
                                  (1 - self.beta_2 ** (self.iters + 1)))
         parameter.data += -self.lr * param_momentum_corrected / \
             (np.sqrt(param_cache_corrected) + self.epilson)
+
+
+class RMSProp(Optimiser):
+        def __init__(self, lr=0.001, decay=0.0, epsilon=1e-7, rho=0.9):
+            super().__init__()
+            self.learning_rate = lr
+            self.decay = decay
+            # ... (rest of the init is the same)
+            self.cache = {}
+
+        def optimise(self, model: models.Sequential) -> None:
+            """
+            This method is called once per batch. We override it to update
+            the learning rate before calling the parent's optimisation loop.
+            """
+            # Update the learning rate based on the current step/iteration
+            if self.decay:
+                self.current_learning_rate = self.learning_rate * (1.0 / (1.0 + self.decay * self.step))
+
+            # Call the parent's optimise method, which runs the loop over optimise_param
+            super().optimise(model)
+
+            # Increment the step counter after the batch is processed
+            self.step += 1
+
+        def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
+            """This method contains the update logic for a single parameter."""
+
+            # First, check if the parameter has a gradient. If not, skip it.
+            if parameter.grad is None:
+                return
+
+            # Initialize the cache for this parameter if it's the first time we've seen it.
+            # Using id(parameter) is a robust way to get a unique key.
+            if id(parameter) not in self.cache:
+                self.cache[id(parameter)] = np.zeros_like(parameter.data)
+
+            # --- The Core RMSProp Logic ---
+            # 1. Update the cache with the exponentially weighted average of squared gradients
+            self.cache[id(parameter)] = (self.rho * self.cache[id(parameter)] +
+                                        (1 - self.rho) * parameter.grad**2)
+
+            # 2. Update the parameter's data using the cache
+            parameter.data += -self.current_learning_rate * \
+                              parameter.grad / (np.sqrt(self.cache[id(parameter)]) + self.epsilon)

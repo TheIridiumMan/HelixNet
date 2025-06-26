@@ -15,7 +15,7 @@ html_theme_path = [sphinx_book_theme.get_html_theme_path()]
 project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
 author = 'Amr Fahmy'
-release = '0.1.6'
+release = '0.2.0'
 
 extensions = [
     "sphinx.ext.autodoc"
