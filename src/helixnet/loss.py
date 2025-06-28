@@ -1,6 +1,6 @@
 import numpy as np
 import mygrad as mg
-
+# pylint: stop
 def CatCrossEntropy(y_pred, y_true):
     return -(mg.sum(y_true * mg.log(y_pred + 1e-8))) / len(y_pred)
 

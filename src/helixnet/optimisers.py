@@ -157,7 +157,8 @@ class RMSProp(Optimiser):
             super().__init__()
             self.learning_rate = lr
             self.decay = decay
-            # ... (rest of the init is the same)
+            self.epsilon = epsilon
+            self.rho = rho
             self.cache = {}
 
         def optimise(self, model: models.Sequential) -> None:

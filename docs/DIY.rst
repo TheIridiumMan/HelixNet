@@ -4,16 +4,18 @@ DIY: Extending HelixNet
 HelixNet is designed for easy extensibility. This guide will show you how 
 to create your own optimizers, layers, and activation functions.
 
-.. warning:: API Under Development
-    HelixNet is in the very early stages of development, and the API may change.
-    If you build custom components, always check the latest documentation 
-    and changelogs for breaking changes.
+.. warning:: API is under heavy development.
+    HelixNet is in the very early stages of development and the API may change
+    at any moment. If you have built custom components, always check the latest
+    documentation and changelogs for breaking changes.
 
 Optimizers
 ----------
-Creating a custom optimizer is straightforward. You need to create a class that
-inherits from ``helixnet.optimisers.Optimiser`` and, most importantly,
+Creating a custom optimizer is a very easy and straightforward process.
+All you need is just inheritance of ``helixnet.optimisers.Optimiser`` 
+and, most importantly,
 implement the ``optimise_param`` method.
+
 
 The base ``Optimiser`` class provides the main training loop, which iterates
 through all the trainable parameters in a model and passes them to your
