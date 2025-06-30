@@ -21,7 +21,7 @@ class Optimiser(ABC):
 
     def optimise_param(self, parameter: mg.Tensor, layer: layers.Layer) -> None:
         """This function takes parameters one by one and must be
-        inhereited by the children
+        inherited by the children
 
         Args:
             parameter (mg.Tensor): The parameter itself
@@ -38,6 +38,14 @@ class Optimiser(ABC):
         for layer in model.layers:
             for parameter in layer.trainable_params:
                 self.optimise_param(parameter, layer)
+
+class Regularizer(ABC):
+    """A Simple regularizer class for parameter regularization"""
+    def __init__(self):
+        pass
+
+    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+        pass
 
 
 class SGD(Optimiser):
@@ -150,3 +158,21 @@ class Adam(Optimiser):
                                  (1 - self.beta_2 ** (self.iters + 1)))
         parameter.data += -self.lr * param_momentum_corrected / \
             (np.sqrt(param_cache_corrected) + self.epilson)
+
+class L1(Regularizer):
+    """A simple L1 regularizer"""
+    def __init__(self, lambda_: float):
+        self.lambda_ = lambda_
+        super().__init__()
+
+    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+        return self.lambda_ * mg.sum(mg.abs(parameter))
+
+class L2(Regularizer):
+    """A simple L2 regularizer"""
+    def __init__(self, lambda_: float):
+        self.lambda_ = lambda_
+        super().__init__()
+
+    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+        return self.lambda_ * mg.sum(mg.power(parameter, 2))

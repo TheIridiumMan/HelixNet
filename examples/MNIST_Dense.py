@@ -15,7 +15,8 @@ import helixnet.models as models
 print("[bold yellow]Libraries are imported loading data[/bold yellow]")
 # The dataset that is used here is from
 #   https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
-df = pd.read_csv("train.csv")
+# for data loading simplicity
+df = pd.read_csv(input("Dataset Path: "))
 print("[bold yellow]Data loaded[/bold yellow]")
 train, test = train_test_split(df, test_size=0.2)
 
@@ -57,6 +58,7 @@ for i in range(epochs):
         loss_value = mg.nnet.losses.softmax_crossentropy(logits, y_true)
 
         loss_history.append(loss_value.data.item())
+        loss_value = loss_value + optimisers.L2()
 
         loss_value.backward()
         optim.optimise(model)
