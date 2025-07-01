@@ -15,7 +15,8 @@ import helixnet.models as models
 print("[bold yellow]Libraries are imported loading data[/bold yellow]")
 # The dataset that is used here is from
 #   https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
-df = pd.read_csv("train.csv")
+# for data loading simplicity
+df = pd.read_csv(input("Dataset Path: "))
 print("[bold yellow]Data loaded[/bold yellow]")
 train, test = train_test_split(df, test_size=0.2)
 
@@ -27,13 +28,15 @@ lr2 = layers.Dense(256, 256, activation=activations.ReLU)
 lr3 = layers.Dense(256, 10, activation=(lambda x: x))
 model = models.Sequential([lr1, lr2, lr3]) # Simplified model for faster demonstration
 
-optim = optimisers.SGD(0.05, False, 0.9)
+optim = optimisers.SGD(0.05, None, 0.9,)
 print("[bold yellow]layers initiated and connected successfully[/]")
+
 
 def batch_gen(df, batch_size):
     for start in range(0, len(df), batch_size):
         end = start + batch_size
         yield df.iloc[start:end]
+
 
 print("[bold red on yellow]The Training has started[/]")
 
@@ -44,7 +47,7 @@ epochs = 12
 for i in range(epochs):
     # FIX 2: Correct total for the progress bar
     for batch in track(batch_gen(train, batch_len), description=f"Training Epoch {i+1}/{epochs}...",
-                       total=len(train)//batch_len):
+                       total=len(train) // batch_len):
         x = mg.tensor(batch.drop(columns="label").values.astype(np.float32) / 255)
 
         # FIX 3: softmax_crossentropy expects integer class labels, not one-hot encoded vectors.
@@ -58,14 +61,13 @@ for i in range(epochs):
 
         loss_history.append(loss_value.data.item())
 
-        loss_value.backward()
-        optim.optimise(model)
+        optim.optimise(model, loss_value)
         # Clear grads for the next iteration
         model.null_grads()
 
     # Evaluate loss on the last batch of the epoch
     print(f"[bold green]Epoch {i+1} trained successfully with final batch loss [/bold green]"
-          f"[bold white]{loss_value.data.item():.4f}[/bold white]")
+          f"[bold white]{loss_history[-1]:.4f}[/bold white]")
     optim.epoch_done()
 
 # After training, get predictions on the test set
