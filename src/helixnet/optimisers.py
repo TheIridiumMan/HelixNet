@@ -12,6 +12,7 @@ class Optimiser(ABC):
     An Abstract class that is used by other optimisers and it also performs
     the primary training loop
     """
+
     def __init__(self) -> None:
         self.step = 1
 
@@ -39,13 +40,22 @@ class Optimiser(ABC):
             for parameter in layer.trainable_params:
                 self.optimise_param(parameter, layer)
 
+
 class Regularizer(ABC):
     """A Simple regularizer class for parameter regularization"""
+
     def __init__(self):
         pass
 
-    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+    def regularize_param(self, parameter: mg.Tensor) -> mg.Tensor:
         pass
+
+    def regularize(self, model: models.Sequential) -> mg.Tensor:
+        loss = 0.0
+        for layer in model.layers:
+            for parameter in layer.trainable_params:
+                loss = loss + self.regularize_param(parameter)
+        return loss
 
 
 class SGD(Optimiser):
@@ -53,6 +63,7 @@ class SGD(Optimiser):
     Stochastic Gradient Descend is a powerful optimiser and 
     is more stable than Adam numerically
     """
+
     def __init__(self, lr, decay=None, momentum=None) -> None:
         """
         :param float lr: The learn rate of the optimiser
@@ -113,6 +124,7 @@ class Adam(Optimiser):
         ``None`` in order to avoid decay
     
     """
+
     def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999) -> None:
         self.lr = self.init_lr = learning_rate
@@ -133,7 +145,7 @@ class Adam(Optimiser):
         """
         return self.init_lr * \
             (1. / (1 + self.decay * self.iters)) if self.decay else self.lr
-    
+
     def epoch_done(self) -> None:
         """This method should be called after every epoch_done is done in order to inform the optimiser to
     update it's parameters like weight decay"""
@@ -159,20 +171,24 @@ class Adam(Optimiser):
         parameter.data += -self.lr * param_momentum_corrected / \
             (np.sqrt(param_cache_corrected) + self.epilson)
 
+
 class L1(Regularizer):
     """A simple L1 regularizer"""
+
     def __init__(self, lambda_: float):
         self.lambda_ = lambda_
         super().__init__()
 
-    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+    def regularize_param(self, parameter: mg.Tensor) -> mg.Tensor:
         return self.lambda_ * mg.sum(mg.abs(parameter))
+
 
 class L2(Regularizer):
     """A simple L2 regularizer"""
+
     def __init__(self, lambda_: float):
         self.lambda_ = lambda_
         super().__init__()
 
-    def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
+    def regularize_param(self, parameter: mg.Tensor) -> mg.Tensor:
         return self.lambda_ * mg.sum(mg.power(parameter, 2))
