@@ -11,7 +11,7 @@ HelixNet is designed to be a transparent and easy-to-understand tool for learnin
 *   **Lightweight & Simple:** No complex compilation or heavy dependencies. Just plug and play.
 *   **Extensible by Design:** A clean, object-oriented structure (`Layer`, `Optimiser`) makes it easy to create your own custom layers and optimizers.
 *   **Modern Architecture:** Includes common layers like `Dense`, `Conv2D`, `MaxPooling2D`, `LSTM`, and `Embedding`.
-*   **Powerful Optimizers:** Comes with robust implementations of `SGD` (with momentum) and `Adam`.
+*   **Powerful Optimizers:** Comes with robust implementations of `SGD` (with momentum), `RMSProp` and`Adam`.
 *   **Full Documentation:** Comprehensive documentation available [here](https://helixnet.readthedocs.io/en/latest/).
 
 ## Installation
@@ -31,7 +31,6 @@ pip install -e .
 Here's a quick example of how to build and train a model on the classic "spiral" dataset.
 
 ```python
-# (You can copy and paste the full code from your examples/spiral_test.py here)
 import numpy as np
 import mygrad as mg
 import helixnet.layers as layers
@@ -70,7 +69,7 @@ for epoch in range(10001):
 
 ## Documentation
 
-For a full guide to all layers, optimizers, and functionalities, please see the **[Full HelixNet Documentation](link_to_your_docs_once_hosted)**.
+For a full guide to all layers, optimizers, and functionalities, please see the **[Full HelixNet Documentation](https://helixnet.readthedocs.io/en/latest/)**.
 
 ## Contributing
 

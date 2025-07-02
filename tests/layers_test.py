@@ -46,6 +46,10 @@ class ABCLayerTest(unittest.TestCase):
         # Because Convolution uses the inherited method and doesn't provide it's own
         self.assertEqual(case.output_shape([1, 28, 28]), (16, 26, 26))
 
+    def test_params_amount(self):
+        layer1 = layers.Dense(256, 128, lambda x: x)
+        self.assertEqual(layer1.total_params(), 256 * 128 + 128)
+
 
 class DenseTests(unittest.TestCase):
     def test_matrix_init(self):
@@ -129,5 +133,19 @@ class MiscLayerTest(unittest.TestCase):
         layer = layers.InputShape([1, 28, 28])
         X = np.random.randn(10, 1, 28, 28)
         output = layer.forward(X)
+
+    def test_flatten_creation(self):
+        layer = layers.Flatten()
+        self.assertEqual(layer.trainable_params, [])
+        self.assertEqual(layer.type, layer.name)
+        layer = layers.Flatten()
+        self.assertEqual(layer.type, layer.name)
+        layer = layers.Flatten()
+        self.assertEqual(layer.type, layer.name)
+
+    def test_flatten_forward(self):
+        layer = layers.Flatten()
+        self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
+                         (78, 15*32*44))
 if __name__ == '__main__':
     unittest.main()

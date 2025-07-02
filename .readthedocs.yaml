@@ -11,5 +11,9 @@ python:
       path: .
     - requirements: docs/requirements.txt
 
+formats:
+  - epub
+  - pdf
+
 sphinx:
   configuration: docs/conf.py

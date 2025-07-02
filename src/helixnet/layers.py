@@ -3,8 +3,6 @@ This module contains layers.
 """
 from typing import List, Dict, Tuple, Optional
 from abc import ABC
-import os
-from concurrent.futures import ProcessPoolExecutor
 from numbers import Integral  # Max Pooling
 
 from mygrad.operation_base import Operation
@@ -14,25 +12,31 @@ from mygrad.nnet.layers.utils import sliding_window_view
 import numpy as np
 import mygrad as mg
 from mygrad import nnet
-from rich import print
 
 from . import activations
 
 names: Dict[str, int] = dict()
 
+
 class Layer(ABC):
     """
-    :param str type_: The type of layer (e.g. Dense, Convolution). This type will be used to generate the name of layer (e.g. Dense 1, Dense2)
-    :param List[mg.Tensor] trainable_params: A list that consists of the parameters that will be trained by the optimiser. Pass an empty list to indicate that it has no trainable parameters
+    :param str type_: The type of layer (e.g. Dense, Convolution).
+        This type will be used to generate the name of layer (e.g. Dense 1, Dense2)
 
-    This the base class of all layers that gives them a unique name if they have trainable parameters
-    and if they don't they will just use their type name without counting.
+    :param List[mg.Tensor] trainable_params: A list that consists of the parameters that
+        will be trained by the optimiser. Pass an empty list to indicate that it has no
+        trainable parameters
+
+    This the base class of all layers that gives them a unique name
+    if they have trainable parameters and if they don't they will just
+    use their type name without counting.
     """
+
     def __init__(self, type_: str, trainable_params: List[mg.Tensor]) -> None:
         self.type = type_
         # self.total_params = total_params
         self.trainable_params: List[mg.Tensor] = trainable_params
-        # TODO: Add parameters testing (e.g. they are tensors no ndarray)
+        # TODO: Add parameters testing (e.g. they are tensors not ndarray)
         if trainable_params != []:
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
@@ -44,14 +48,16 @@ class Layer(ABC):
                 names[type_] = 2  # Because we already used `1`
         else:
             self.name = type_
+
     def __call__(self, *args, **kwargs) -> mg.Tensor:
         """
         This operator should perform a forward propagation
-        """  # This behaviour will change 
+        """  # This behaviour will change
         self.forward(*args, **kwargs)
+
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
-        :param mg.Tensor | np.ndarray X: The data that should be forward propagated 
+        :param mg.Tensor | np.ndarray X: The data that should be forward propagated
         :return: The prediction of the layer
         :rtype: mg.Tensor
 
@@ -69,6 +75,7 @@ class Layer(ABC):
         """
         with mg.no_autodiff:
             return self.forward(*args, **kwargs)
+
     def null_grad(self):
         """
         This function resets the gradients of parameters.
@@ -100,33 +107,36 @@ class Layer(ABC):
             params += np.array(parameter.shape).prod()
         return params
 
+
 class Dense(Layer):
     """
     :param int inputs: The size of inputs.
     :param int params: The size of parameters. It is the size of the output.
-    :param activation: The activation function that will be used with the layer. Any function or object with ``__call__()`` method.
+    :param activation: The activation function that will be used with the layer.
+        Any function or object with ``__call__()`` method.
     :param bool use_bias: Whether to have a bias or not.
-    :param dtype: The data type of the parameters of the layers also using data types from **MyGrad** is preferred over NumPy
+    :param dtype: The data type of the parameters of the layers also using
+        data types from **MyGrad** is preferred over NumPy
 
     A simple dense layer that can be used.
     Also All inherited methods are the same
     """
+
     def __init__(self, inputs: int, params: int, activation,
-    use_bias: bool = True, dtype = mg.float32) -> None:
+                 use_bias: bool = True, dtype=mg.float32) -> None:
         he_stddev = np.sqrt(2. / np.array(inputs).sum())
         self.use_bias = use_bias
         self.activation = activation
         self.out_sh = tuple([params]) if isinstance(params, int) else params
         inputs = tuple([inputs]) if isinstance(inputs, int) else inputs
         self.weights = mg.tensor(np.random.randn(*inputs, *self.out_sh) * he_stddev, constant=False,
-                                     dtype=dtype)
+                                 dtype=dtype)
         if self.use_bias:
             self.bias = mg.tensor(np.random.randn(1, *self.out_sh), constant=False,
-                                    dtype=dtype)
+                                  dtype=dtype)
             super().__init__("Dense", [self.weights, self.bias])
         else:
             super().__init__("Dense", [self.weights])
-
 
     def forward(self, X: np.array):
         """
@@ -150,11 +160,13 @@ class Dense(Layer):
             raise NotImplementedError("Creating model with training data is not"
                                       "Supported yet. Use pickle instead")
 
-    def output_shape(self, other_shape = None) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]]=None) -> Tuple[int]:
         return self.out_sh
 
 # Well class _MaxPoolND taken from MyGrad.nnet implementation but it doesn't use
 # Floor division so I had to create mine with floor division
+
+
 class _MaxPoolND(Operation):
     def __call__(self, x, pool, stride):
         self.variables = (x,)  # data: ((N0, ...), C0, ...)
@@ -201,7 +213,8 @@ class _MaxPoolND(Operation):
         # (G0, ...) is the tuple of grid-positions for placing each window (not including stride)
         # sliding_window_view(x): ((N0, ...), C0, ...)          -> (G0, ..., (N0, ...), P0, ...)
         # max-pool:               (G0, ..., (N0, ...), P0, ...) -> (G0, ..., (N0, ...))
-        maxed = sliding_window_view(x, self.pool, self.stride).max(axis=pool_axes)
+        maxed = sliding_window_view(
+            x, self.pool, self.stride).max(axis=pool_axes)
         axes = tuple(range(maxed.ndim))
 
         # (G0, ..., (N0, ...)) -> ((N0, ...), G0, ...)
@@ -228,7 +241,8 @@ class _MaxPoolND(Operation):
         )  # ((N0, ...), G0, ...)
 
         # flat-index offset associated with reshaped window within `x`
-        row_major_offset = tuple(np.cumprod(x.shape[-num_pool:][:0:-1])[::-1]) + (1,)
+        row_major_offset = tuple(np.cumprod(
+            x.shape[-num_pool:][:0:-1])[::-1]) + (1,)
 
         # flat index of argmax, updated based on position within window, according to shape of `x`
         in_window_offset = sum(
@@ -240,13 +254,15 @@ class _MaxPoolND(Operation):
         window_offset = sum(
             ind * s * off
             for ind, s, off in zip(
-                np.indices(grid_shape[:num_pool]), self.stride, row_major_offset
+                np.indices(grid_shape[:num_pool]
+                           ), self.stride, row_major_offset
             )
         )
 
         # indices required to traverse pool-axis-flattened array
         # ((N0, ...) G0*...)
-        flat_grid_shape = (*maxed.shape[:-num_pool], np.prod(maxed.shape[-num_pool:]))
+        flat_grid_shape = (
+            *maxed.shape[:-num_pool], np.prod(maxed.shape[-num_pool:]))
         index = np.indices(flat_grid_shape)
 
         # update trailing indices to traverse location of max entries within pooled axes
@@ -259,14 +275,16 @@ class _MaxPoolND(Operation):
         np.add.at(dx, tuple(index), grad.reshape(*x.shape[:-num_pool], -1))
         return dx.reshape(x.shape)
 
+
 def _max_pool(
     x,
     pool,
     stride,
     *,
-    constant = None,
+    constant=None,
 ) -> Tensor:
     return Tensor._op(_MaxPoolND, x, op_args=(pool, stride), constant=constant)
+
 
 class Conv2D(Layer):
     """
@@ -274,7 +292,8 @@ class Conv2D(Layer):
     :param int input_channel: the expected number of input channels
     :param int output_channel: The number of channels should the layer output
     :param int kernel_size: the size of the kernel
-    :param activation: The activation function that will be used with the layer. Any function or object with ``__call__()`` method.
+    :param activation: The activation function that will be used with the layer.
+    Any function or object with ``__call__()`` method.
     :param bool use_bias: Whether to have a bias or not.
 
     Assumes input data is of shape (N, C_in, H, W):
@@ -287,6 +306,7 @@ class Conv2D(Layer):
 
     **W**: width of the input feature map
     """
+
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
                  stride=1, padding=0, activation=None, use_bias: bool = True):
 
@@ -297,7 +317,8 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape) * np.sqrt(2. /
+                                (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -320,7 +341,6 @@ class Conv2D(Layer):
         Also the images needs t be in the following shape
         (batch_size, color_channels, length, width)
         """
-        batch_size = X.shape[0]
         conv_result = nnet.conv_nd(X, self.weights, stride=self.stride,
                                    padding=self.padding)
 
@@ -334,6 +354,7 @@ class Flatten(Layer):
     """
     A simple flatten layer that turns it's inputs into a flat layer
     """
+
     def __init__(self, input_shape: Optional[Tuple[int]] = None):
         super().__init__("Flatten", [])
 
@@ -350,15 +371,18 @@ class Flatten(Layer):
         # The rest of the dimensions are flattened.
         return X.reshape(self.input_shape[0], -1)
 
-    def output_shape(self, input_shape) -> Tuple[int]:
-        return (np.array(input_shape)[0:].prod(),)
+    def output_shape(self, prev_shape: Tuple[int]) -> Tuple[int]:
+        return (np.array(prev_shape)[0:].prod(),)
+
 
 class MaxPooling2D(Layer):
     """
-    :param int | Tuple[int, int] pool_size: the pool size can be integer for square pools and can be a tuple for rectangular tuples
+    :param int | Tuple[int, int] pool_size: the pool size can be integer for square
+        pools and can be a tuple for rectangular tuples
 
     A layer to perform max pooling over a 4D input (No_samples, Channels, Height, Width).
     """
+
     def __init__(self, pool_size, stride=None):
         super().__init__("MaxPooling2D", [])
         if isinstance(pool_size, int):
@@ -380,12 +404,14 @@ class MaxPooling2D(Layer):
         """
         return _max_pool(X, self.pool_size, self.stride)
 
+
 class LSTMCell(Layer):
     """
     A single cell of an LSTM. Performs the computation for one timestep.
     This is an efficient implementation where all gate calculations are
     done in a single matrix multiplication.
     """
+
     def __init__(self, input_size: int, hidden_size: int):
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -396,16 +422,16 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size) * np.sqrt(2. / concat_size)
-        , dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size) * \
+                np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
-        self.bias_all = mg.tensor(np.zeros((1, 4 * hidden_size)), dtype=mg.float32)
+        self.bias_all = mg.tensor(
+            np.zeros((1, 4 * hidden_size)), dtype=mg.float32)
         # A common practice is to initialize the forget gate bias to 1.0 to encourage remembering.
-        self.bias_all.data[:, hidden_size : 2 * hidden_size] = 1.0
+        self.bias_all.data[:, hidden_size: 2 * hidden_size] = 1.0
 
         super().__init__("LSTMCell", [self.weights_all, self.bias_all])
-
 
     def forward(self, x_t: mg.Tensor, h_prev: mg.Tensor, C_prev: mg.Tensor):
         """
@@ -424,15 +450,15 @@ class LSTMCell(Layer):
 
         # Perform a single matrix multiplication for all gates
         gate_calcs = mg.matmul(concat_input, self.weights_all) + self.bias_all
-        
+
         # --- FIX STARTS HERE ---
         # Instead of mg.split, use standard tensor slicing.
         # This is the correct and idiomatic way in MyGrad.
         hs = self.hidden_size
         f_calc = gate_calcs[:, :hs]
-        i_calc = gate_calcs[:, hs : 2 * hs]
-        g_calc = gate_calcs[:, 2 * hs : 3 * hs]
-        o_calc = gate_calcs[:, 3 * hs :]  # Slicing to the end is robust
+        i_calc = gate_calcs[:, hs: 2 * hs]
+        g_calc = gate_calcs[:, 2 * hs: 3 * hs]
+        o_calc = gate_calcs[:, 3 * hs:]  # Slicing to the end is robust
         # --- FIX ENDS HERE ---
 
         # Apply activation functions to each gate
@@ -453,6 +479,7 @@ class LSTMLayer(Layer):
     An LSTM layer that processes a sequence of inputs by unrolling an LSTMCell
     over time.
     """
+
     def __init__(self, input_size: int, hidden_size: int, return_sequences: bool = True):
         self.hidden_size = hidden_size
         self.return_sequences = return_sequences
@@ -466,7 +493,6 @@ class LSTMLayer(Layer):
         # LSTM layer doesn't need its own use_bias attribute, it's handled by the cell
         self.use_bias = True
         super().__init__("LSTM", [self.weights, self.bias])
-
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -482,8 +508,10 @@ class LSTMLayer(Layer):
         batch_size, seq_len, _ = X.shape
 
         # Initialize hidden state and cell state with zeros
-        h_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
-        C_prev = mg.tensor(np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
+        h_prev = mg.tensor(
+            np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
+        C_prev = mg.tensor(
+            np.zeros((batch_size, self.hidden_size)), dtype=mg.float32)
 
         # List to store the hidden states from each timestep
         outputs = []
@@ -505,17 +533,20 @@ class LSTMLayer(Layer):
         if self.return_sequences:
             # Stack all hidden states to create a single output tensor
             # We need to reshape each h_next to (N, 1, hidden_size) before concatenating
-            reshaped_outputs = [out.reshape(batch_size, 1, self.hidden_size) for out in outputs]
+            reshaped_outputs = [out.reshape(
+                batch_size, 1, self.hidden_size) for out in outputs]
             return mg.concatenate(reshaped_outputs, axis=1)
         else:
             # Return only the last hidden state
             return outputs[-1]
 
+
 class Embedding(Layer):
     """Word embedding layer
-    
+
     :param int vocab_size: The size of vocabulary
     :param int dim: the number of output dimensions"""
+
     def __init__(self, vocab_size, dim) -> None:
         self.vocab_size = vocab_size
         self.dim = dim
@@ -525,8 +556,9 @@ class Embedding(Layer):
 
         super().__init__("Embedding", [self.weight])
 
-    def forward(self, input):
-        return self.weight[input]
+    def forward(self, X: mg.Tensor):
+        return self.weight[X]
+
 
 class InputShape(Layer):
     """
@@ -536,6 +568,7 @@ class InputShape(Layer):
     (X, D1, D2, D3, ... ) where it ignores the the first dimension because it is
     the number of samples.
     """
+
     def __init__(self, shape: Tuple[int],
                  ensure_shape: Optional[bool] = True) -> None:
         self.shape = tuple(shape)
@@ -549,6 +582,6 @@ class InputShape(Layer):
                              f"the desired {self.shape}")
         return X
 
-    def output_shape(self, prev_shape: Optional[Tuple[int]] = []) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         """returns the input shape of layers"""
         return self.shape
