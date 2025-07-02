@@ -1,6 +1,5 @@
 import numpy as np
 import mygrad as mg
-from mygrad.computational_graph import build_graph
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 
@@ -11,7 +10,7 @@ import nnfs
 from nnfs.datasets.spiral import create_data
 
 import helixnet.layers as layers
-import helixnet.optimisers as optimisers
+import helixnet.optimizers as optimizers
 import helixnet.activations as activations
 import helixnet.models as models
 
@@ -24,13 +23,12 @@ y_enc = encoder.fit_transform(y.reshape(-1, 1))
 X = mg.tensor(X)
 y_enc = mg.tensor(y_enc)
 
-# FIX 1: The final layer for classification MUST use softmax, not ReLU.
 lr1 = layers.Dense(2, 128, activation=activations.ReLU, dtype=mg.float64)
 lr2 = layers.Dense(128, 64, activation=activations.ReLU, dtype=mg.float64)
 lr3 = layers.Dense(64, 64, activation=activations.ReLU, dtype=mg.float64)
 lr4 = layers.Dense(64, 3, activation=(lambda x: x), dtype=mg.float64)
 model = models.Sequential([lr1, lr2, lr3, lr4])
-optim = optimisers.SGD(0.01, 0.0001)
+optim = optimizers.SGD(0.01, 0.0001)
 
 losses = []
 accs = []
@@ -52,12 +50,7 @@ try:
             print(f"[bold yellow] Iteration: {i} | Loss: {loss_val.data.item():.4f}"
                   f" | Acc: {accuracy:.2%}[/]")
 
-        loss_val.backward()
-        optim.optimise(model)
-        # optim.step += 1
-        # You would need to add model.null_grads() here as well
-        # if your autograd lib accumulates gradients
-    print("Shape", pred_probs.shape)
+        optim.optimize(model, loss_val)
 except KeyboardInterrupt:
     pass
 

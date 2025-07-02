@@ -7,16 +7,17 @@ from sklearn.model_selection import train_test_split
 from rich.progress import track
 from rich import print
 
-import helixnet.layers as  layers
-import helixnet.optimisers as optimisers
+import helixnet.layers as layers
+import helixnet.optimizers as optimizers
 import helixnet.activations as activations
 import helixnet.models as models
+from helixnet import optimizers
 
 # --- 1. SETUP & DATA PREPARATION ---
 print("[bold yellow]Loading and preparing MNIST data for CNN...[/bold yellow]")
 # The dataset that is used here is from
 #   https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
-df = pd.read_csv("train.csv")
+df = pd.read_csv(input("File Name: "))
 train, test = train_test_split(df, test_size=1024, random_state=42)
 
 # --- 2. MODEL CONFIGURATION: Build the CNN ---
@@ -61,14 +62,17 @@ MOMENTUM = 0.9
 EPOCHS = 5  # CNNs often converge faster than Dense nets
 BATCH_SIZE = 32
 
-optim = optimisers.SGD(INITIAL_LR, False, momentum=MOMENTUM)
+optim = optimizers.SGD(INITIAL_LR, False, momentum=MOMENTUM)
 print(f"Optimizer: SGD(lr={INITIAL_LR}, momentum={MOMENTUM})")
 
 # --- 4. TRAINING LOOP ---
+
+
 def batch_gen(df, batch_size):
     for start in range(0, len(df), batch_size):
         end = start + batch_size
         yield df.iloc[start:end]
+
 
 print("[bold red on yellow]CNN Training has started[/]")
 loss_history = []
@@ -77,8 +81,8 @@ for epoch in range(EPOCHS):
     # Optional: Learning Rate Scheduler can be added here as before
 
     for batch in track(batch_gen(train, BATCH_SIZE),
-                               description=f"Training CNN Epoch {epoch+1}/{EPOCHS}...",
-                               total=len(train)//BATCH_SIZE):
+                       description=f"Training CNN Epoch {epoch+1}/{EPOCHS}...",
+                       total=len(train) // BATCH_SIZE):
         # IMPORTANT: Reshape data for CNN input (N, C, H, W)
         x = batch.drop(columns="label").values.astype(np.float32) / 255
         x = mg.tensor(x.reshape(-1, INPUT_CHANNELS, 28, 28))
@@ -89,9 +93,7 @@ for epoch in range(EPOCHS):
         loss_value = mg.nnet.losses.softmax_crossentropy(logits, y_true)
         loss_history.append(loss_value.data.item())
 
-        loss_value.backward()
-        optim.optimise(model)
-        model.null_grads()
+        optim.optimize(model, loss_value)
     del x, logits
     print(f"[bold green] Trained with loss: {loss_value}")
 

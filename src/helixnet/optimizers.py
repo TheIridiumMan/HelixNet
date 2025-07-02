@@ -1,6 +1,5 @@
 from abc import ABC
 from typing import List
-from copy import deepcopy
 
 import numpy as np
 import mygrad as mg
@@ -46,7 +45,7 @@ class Optimiser(ABC):
     def get_current_lr(self) -> float:
         """This method is used when every time the training."""
 
-    def optimise(self, model: models.Sequential, loss: mg.Tensor) -> None:
+    def optimize(self, model: models.Sequential, loss: mg.Tensor) -> None:
         """This method trains models and calls optimise_param
         for every parameter in the layer and it's called when the training happens
 
