@@ -73,16 +73,15 @@ class Layer(ABC):
         This function should in inference not in training because
         it doesn't track the gradients
         """
-        with mg.no_autodiff:
-            return self.forward(*args, **kwargs)
+        return self.forward(*args, **kwargs)
 
     def null_grad(self):
         """
         This function resets the gradients of parameters.
         This method should not be modified by children
-        :return: This method doesn't return anything
 
         This function should be used we want to be sure the gradients don't stack up
+        :return: This method doesn't return anything
         """
         for parameter in self.trainable_params:
             parameter.null_grad()
@@ -118,8 +117,7 @@ class Dense(Layer):
     :param dtype: The data type of the parameters of the layers also using
         data types from **MyGrad** is preferred over NumPy
 
-    A simple dense layer that can be used.
-    Also All inherited methods are the same
+    A simple dense layer.
     """
 
     def __init__(self, inputs: int, params: int, activation,
@@ -288,15 +286,15 @@ def _max_pool(
 
 class Conv2D(Layer):
     """
-    A 2D convolution layer that uses multiple processes to compute the forward pass.
-    :param int input_channel: the expected number of input channels
-    :param int output_channel: The number of channels should the layer output
-    :param int kernel_size: the size of the kernel
+    :param int input_channel: the expected number of input channels.
+    :param int output_channel: The number of channels should the layer output.
+    :param int kernel_size: the size of the kernel.
     :param activation: The activation function that will be used with the layer.
-    Any function or object with ``__call__()`` method.
+        Any function or object with ``__call__()`` method.
     :param bool use_bias: Whether to have a bias or not.
 
-    Assumes input data is of shape (N, C_in, H, W):
+    :class:`helixnet.layers.Conv2D` assumes input data is of 
+        shape **(N, C_in, H, W)**:
 
     **N**: batch size
 
@@ -408,8 +406,6 @@ class MaxPooling2D(Layer):
 class LSTMCell(Layer):
     """
     A single cell of an LSTM. Performs the computation for one timestep.
-    This is an efficient implementation where all gate calculations are
-    done in a single matrix multiplication.
     """
 
     def __init__(self, input_size: int, hidden_size: int):
@@ -437,13 +433,12 @@ class LSTMCell(Layer):
         """
         Performs a forward pass for a single timestep.
 
-        Args:
-            x_t (mg.Tensor): Input for the current timestep, shape (N, input_size).
-            h_prev (mg.Tensor): Hidden state from the previous timestep, shape (N, hidden_size).
-            C_prev (mg.Tensor): Cell state from the previous timestep, shape (N, hidden_size).
+        
+        :param x_t (mg.Tensor): Input for the current timestep, shape (N, input_size).
+        :param h_prev (mg.Tensor): Hidden state from the previous timestep, shape (N, hidden_size).
+        :param C_prev (mg.Tensor): Cell state from the previous timestep, shape (N, hidden_size).
 
-        Returns:
-            Tuple[mg.Tensor, mg.Tensor]: The new hidden state (h_next) and cell state (C_next).
+        :return Tuple[mg.Tensor, mg.Tensor]: The new hidden state (h_next) and cell state (C_next).
         """
         # Concatenate previous hidden state and current input
         concat_input = mg.concatenate([h_prev, x_t], axis=1)
@@ -498,11 +493,8 @@ class LSTMLayer(Layer):
         """
         Processes a sequence of inputs.
 
-        Args:
-            X (mg.Tensor): The input sequence, shape (N, seq_len, input_size).
-
-        Returns:
-            mg.Tensor: The sequence of hidden states, shape (N, seq_len, hidden_size),
+        :param mg.Tensor X: The input sequence, shape (N, seq_len, input_size).
+        :return mg.Tensor: The sequence of hidden states, shape (N, seq_len, hidden_size),
                        or the final hidden state, shape (N, hidden_size).
         """
         batch_size, seq_len, _ = X.shape
@@ -542,10 +534,12 @@ class LSTMLayer(Layer):
 
 
 class Embedding(Layer):
-    """Word embedding layer
+    """
+    Word embedding layer
 
     :param int vocab_size: The size of vocabulary
-    :param int dim: the number of output dimensions"""
+    :param int dim: the number of output dimensions
+    """
 
     def __init__(self, vocab_size, dim) -> None:
         self.vocab_size = vocab_size

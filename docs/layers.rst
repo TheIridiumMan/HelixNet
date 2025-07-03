@@ -6,12 +6,18 @@ Here we have our building blocks **The Layers**
 .. autoclass:: helixnet.layers.Layer
     :members:
 
-.. warning:: 
+.. warning::
     Don't attempt to modify :class:`helixnet.layers.Layer.trainable_params`
     because this might cause the optimizer to lose its state data (e.g., momentum)
 
     Also it's not recommended to overload :class:`helixnet.layers.Layer.predict`
-    and :class:`helixnet.layers.Layer.null_grad` to ensure consistent behavior across the framework
+    ,:class:`helixnet.layers.Layer.null_grad` and
+    :class:`helixnet.layers.Layer.total_params`
+    to ensure consistent behaviour across the framework
+
+.. note::
+    If you can calculate the output of a custom created layer more
+    efficiently you should overload :class:`helixnet.layers.Layer.output_shape`
 
 .. autoclass:: helixnet.layers.Dense
     :members:

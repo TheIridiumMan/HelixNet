@@ -36,7 +36,7 @@ class ABCLayerTest(unittest.TestCase):
     def test_predict(self):
         case = layers.Dense(64, 86, lambda x: x)
         # We will be using dense because it is a more complete layer
-        loss.MeanAbsError(case.forward(np.ones((1, 64))), np.ones((1, 86)))\
+        loss.MeanAbsError(case.predict(np.ones((1, 64))), np.ones((1, 86)))\
             .backward()
         for param in case.trainable_params:
             self.assertIsNone(param.grad)

@@ -23,8 +23,9 @@ Just plug and play.
    :caption: Contents:
 
    installation
-   optimisers
+   optimizers
    layers
    models
    preprocessing
    DIY
+   changelog
