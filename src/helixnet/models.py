@@ -1,17 +1,18 @@
-from typing import List, Tuple
+"""This module contains model creation capablities and tools"""
+from typing import List, Tuple, Dict
 
-import numpy as np
 import mygrad as mg
 
-import helixnet.layers as layers
+from helixnet import layers
 
 
 class Sequential:
     """A Simple model that propagate through the layers in a linear way
     
     :param list layer: the list which contains the layers"""
-    def __init__(self, layers: List[layers.Layer]) -> None:
-        self.layers = layers
+
+    def __init__(self, layers_: List[layers.Layer]) -> None:
+        self.layers = layers_
 
     def forward(self, x: mg.Tensor) -> mg.Tensor:
         """Perform a prediction across multiple layers
@@ -53,7 +54,10 @@ class Sequential:
         self.layers.append(layer)
 
     def summary(self) -> None:
-        """This method prints the model summary which contains the name of every layer and it's shape"""
+        """
+        This method prints the model summary which contains
+        the name of every layer and it's shape
+        """
         print("Layer", 11 * " ", "Output Shape", 10 * " ", "Total Parameters")
         print("=" * 60)
         shape = []
@@ -75,3 +79,22 @@ class Sequential:
         for layer in self.layers:
             x = layer.predict(x)
         return x
+
+
+def save_layer(layer: layers.Layer) -> Dict[str, List[List[float]]]:
+    """
+    This converts the layer into dictionary.
+    
+    .. warning::
+        It will discard the gradients of parameters
+
+    :param layers.Layer layer: The layer that will be saved
+    :return Dict[str, List[List[float]]]: The dictionary that holds information
+        about the model which will be saved to dict later
+    """
+    output = {}
+    output["name"] = layer.name
+    for i, parameter in enumerate(layer.trainable_params):
+        parameter: mg.Tensor
+        output[f"param_{i}"] = parameter.data.tolist()
+    return output
