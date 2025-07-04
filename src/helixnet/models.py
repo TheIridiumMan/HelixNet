@@ -90,11 +90,27 @@ def save_layer(layer: layers.Layer) -> Dict[str, List[List[float]]]:
 
     :param layers.Layer layer: The layer that will be saved
     :return Dict[str, List[List[float]]]: The dictionary that holds information
-        about the model which will be saved to dict later
+        about the model which will be saved to JSON later
     """
     output = {}
     output["name"] = layer.name
+    output["type"] = layer.type
     for i, parameter in enumerate(layer.trainable_params):
         parameter: mg.Tensor
         output[f"param_{i}"] = parameter.data.tolist()
     return output
+
+
+def load_layer(struct: Dict[str, List[List[float]]],
+               extra_layers: Dict[str, layers.Layer] = None) -> layers.Layer:
+    """
+    loads layers from dictionary that is created by :func:`helixnet.models.save_layer`
+    
+    :return layers.Layer: The layer that will be loaded
+    :param Dict[str, List[List[float]]] layer: The dictionary that holds information
+        about the model which will be loaded to :class:`helixnet.layers.Layer`
+    :param Dict[str, layers.Layer] extra_layers: A dictionary that holds information
+        for custom created :class:`helixnet.layers.Layer`
+    """
+    layer_map = layers.layers_map | dict(extra_layers)
+    output = layer_map[struct["type"]]()

@@ -15,7 +15,7 @@ from mygrad import nnet
 
 from . import activations
 
-names: Dict[str, int] = dict()
+names: Dict[str, int] = {}
 
 
 class Layer(ABC):
@@ -55,6 +55,7 @@ class Layer(ABC):
         """  # This behaviour will change
         self.forward(*args, **kwargs)
 
+    # pylint: disable-next=C0103
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
         :param mg.Tensor | np.ndarray X: The data that should be forward propagated
@@ -120,6 +121,7 @@ class Dense(Layer):
     A simple dense layer.
     """
 
+    # pylint: disable-next=R0913
     def __init__(self, inputs: int, params: int, activation,
                  use_bias: bool = True, dtype=mg.float32) -> None:
         he_stddev = np.sqrt(2. / np.array(inputs).sum())
@@ -147,18 +149,17 @@ class Dense(Layer):
         return self.activation(output)
 
     def to_dict(self, inference_only=False) -> dict:
-        res = dict()
+        res = {}
         res["weights"] = self.weights
         res["func"] = self.activation.__name__
         if self.use_bias:
             res["bias"] = self.bias
-        if inference_only:
-            return res
-        else:
+        if not inference_only:
             raise NotImplementedError("Creating model with training data is not"
                                       "Supported yet. Use pickle instead")
+        return res
 
-    def output_shape(self, prev_shape: Optional[Tuple[int]]=None) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         return self.out_sh
 
 # Well class _MaxPoolND taken from MyGrad.nnet implementation but it doesn't use
@@ -187,9 +188,9 @@ class _MaxPoolND(Operation):
         assert len(stride) == len(pool) and all(
             s >= 1 and isinstance(s, Integral) for s in stride
         )
-
+        # pylint: disable-next= W0201
         self.pool = pool  # (P0, ...)
-        self.stride = stride  # (S0, ...)
+        self.stride = stride  # (S0, ...) # pylint: disable= W0201
 
         num_pool = len(pool)
         num_no_pool = x.ndim - num_pool
@@ -219,7 +220,7 @@ class _MaxPoolND(Operation):
         out = maxed.transpose(axes[-num_no_pool:] + axes[:-num_no_pool])
         return out if out.flags["C_CONTIGUOUS"] else np.ascontiguousarray(out)
 
-    def backward_var(self, grad, index, **kwargs):
+    def backward_var(self, grad, index, **kwargs): # pylint: disable= R0914
         """Parameters
         ----------
         grad : numpy.ndarray, shape=((N0, ...), G0, ...),
@@ -281,6 +282,7 @@ def _max_pool(
     *,
     constant=None,
 ) -> Tensor:
+    # pylint: disable-next= W0212
     return Tensor._op(_MaxPoolND, x, op_args=(pool, stride), constant=constant)
 
 
@@ -315,8 +317,9 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) * np.sqrt(2. /
-                                (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape) *
+            np.sqrt(2. /
+                    (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -364,12 +367,11 @@ class Flatten(Layer):
         Takes an input of shape (N, C, H, W) and flattens it
         to a shape of (N, C*H*W).
         """
-        self.input_shape = X.data.shape
-        # The first dimension (N, batch size) is preserved.
+        # The first dimension (batch size, N) is preserved.
         # The rest of the dimensions are flattened.
-        return X.reshape(self.input_shape[0], -1)
+        return X.reshape(X.data.shape[0], -1)
 
-    def output_shape(self, prev_shape: Tuple[int]) -> Tuple[int]:
+    def output_shape(self, prev_shape: Tuple[int] = ()) -> Tuple[int]:
         return (np.array(prev_shape)[0:].prod(),)
 
 
@@ -418,8 +420,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size) * \
-                np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size)
+            * np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
@@ -446,15 +448,12 @@ class LSTMCell(Layer):
         # Perform a single matrix multiplication for all gates
         gate_calcs = mg.matmul(concat_input, self.weights_all) + self.bias_all
 
-        # --- FIX STARTS HERE ---
-        # Instead of mg.split, use standard tensor slicing.
         # This is the correct and idiomatic way in MyGrad.
         hs = self.hidden_size
         f_calc = gate_calcs[:, :hs]
         i_calc = gate_calcs[:, hs: 2 * hs]
         g_calc = gate_calcs[:, 2 * hs: 3 * hs]
         o_calc = gate_calcs[:, 3 * hs:]  # Slicing to the end is robust
-        # --- FIX ENDS HERE ---
 
         # Apply activation functions to each gate
         f_t = activations.sigmoid(f_calc)
@@ -528,9 +527,9 @@ class LSTMLayer(Layer):
             reshaped_outputs = [out.reshape(
                 batch_size, 1, self.hidden_size) for out in outputs]
             return mg.concatenate(reshaped_outputs, axis=1)
-        else:
-            # Return only the last hidden state
-            return outputs[-1]
+
+        # Return only the last hidden state
+        return outputs[-1]
 
 
 class Embedding(Layer):
@@ -579,3 +578,15 @@ class InputShape(Layer):
     def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         """returns the input shape of layers"""
         return self.shape
+
+
+layers_map = {
+    "Dense": Dense,
+    "Conv2D": Conv2D,
+    "Flatten": Flatten,
+    "MaxPooling2D": MaxPooling2D,
+    "LSTMCell": LSTMCell,
+    "LSTMLayer": LSTMLayer,
+    "Embedding": Embedding,
+    "InputShape": InputShape
+}
