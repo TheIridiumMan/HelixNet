@@ -39,6 +39,12 @@ Here we have our building blocks **The Layers**
 
 .. autoclass:: helixnet.layers.LSTMLayer
     :members:
-    
+
 .. autoclass:: helixnet.layers.LSTMCell
+    :members:
+
+.. autoclass:: helixnet.layers.BatchNorm
+    :members:
+
+.. autoclass:: helixnet.layers.Dropout
     :members:

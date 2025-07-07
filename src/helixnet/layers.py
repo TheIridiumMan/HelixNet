@@ -584,7 +584,7 @@ class InputShape(Layer):
 class Dropout(Layer):
     """
     A dropout layer
-    
+
     :param float proba: The percentage of inactive neurons
     """
 
@@ -593,7 +593,6 @@ class Dropout(Layer):
         super().__init__("Dropout", [])
 
     def forward(self, X):
-        # FIX: Scale the output by the keep probability during training
         keep_proba = 1 - self.proba
         mask = np.random.binomial(1, keep_proba, size=X.data.shape)
         # The division scales up the active neurons to compensate for the dropped ones
@@ -601,14 +600,22 @@ class Dropout(Layer):
 
     def predict(self, X):
         """
-        In method :class:`helixnet.layers.Dropout.predict` 
-        the :class:`helixnet.layers.Dropout` won't perform the dropout
+        In the method :class:`helixnet.layers.Dropout.predict` 
+        the :class:`helixnet.layers.Dropout` won't perform the dropout and
+        pass the inputs directly.
         """
         return X
 
 
 class BatchNorm(Layer):
-    def __init__(self, input_shape, momentum=0.99, epsilon=1e-7):
+    """
+    Performs batch normalization.
+
+    :param Tuple[int] input_shape: The shape of the input of the data
+    :param float momentum: The momentum of the layer
+    :param float epsilon: A simple number for numerical stability
+    """
+    def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
         self.weight = np.random.randn(*input_shape)
         self.bias = np.random.randn(*input_shape[1:])
         super().__init__("BatchNorm", [self.weight, self.bias])
@@ -620,22 +627,27 @@ class BatchNorm(Layer):
         self.running_var = np.ones(input_shape)
         self.training = True # Start in training mode
 
-    def forward(self, X):
-        if self.training:
-            # During training, use batch statistics
-            batch_mean = mg.mean(X, axis=0)
-            batch_var = mg.var(X, axis=0)
+    def forward(self, X) -> mg.Tensor:
+        # During training, use batch statistics
+        batch_mean = mg.mean(X, axis=0)
+        batch_var = mg.var(X, axis=0)
 
-            # Update running averages
-            self.running_mean = self.momentum * self.running_mean + \
+        # Update running averages
+        self.running_mean = self.momentum * self.running_mean + \
                 (1 - self.momentum) * batch_mean.data
-            self.running_var = self.momentum * self.running_var + \
+        self.running_var = self.momentum * self.running_var + \
                 (1 - self.momentum) * batch_var.data
 
-            # Normalize with batch statistics
-            normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
-        else:
-            # During inference, use the stable running averages
-            normalized_x = (X - self.running_mean) / mg.sqrt(self.running_var + self.epsilon)
+        # Normalize with batch statistics
+        normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
 
+        return self.weight * normalized_x + self.bias
+
+    def predict(self, X,*args, **kwargs) -> mg.Tensor:
+        """
+        Normalize the data without updating the running mean and variance
+
+        :param mg.Tensor X: The input of the data
+        """
+        normalized_x = (X - self.running_mean) / mg.sqrt(self.running_var + self.epsilon)
         return self.weight * normalized_x + self.bias
