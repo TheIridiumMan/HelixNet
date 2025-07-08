@@ -1,6 +1,5 @@
 import numpy as np
 import mygrad as mg
-# pylint: stop
 
 
 def CatCrossEntropy(y_pred, y_true):

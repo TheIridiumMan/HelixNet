@@ -31,6 +31,8 @@ class Optimizer(ABC):
     :param float lr: The learn rate of the optimizer
     :param List[Regularizer] regularizers: The regularizers that
         will be applied to the parameters by the optimizer
+    :param float grad_clip: The values which the gradients will be clipped to it. Or
+        pass ``None`` in order to avoid performing gradient clipping
     """
 
     def __init__(self, lr: float, regularizers: List[Regularizer] = None,
@@ -281,9 +283,9 @@ class RMSProp(Optimizer):
             (np.sqrt(self.cache[id(parameter)]) + self.epsilon)
 
 
-class NestrovSGD(Optimizer):
+class NesterovSGD(Optimizer):
     """
-    A Nestrov Stochastic Gradient Descend optimizer.
+    A Nesterov Stochastic Gradient Descend optimizer.
 
     :param float lr: The learn rate of the optimiser
     :param float decay: The rate of learn rate decay can be ``None`` or
@@ -317,17 +319,15 @@ class NestrovSGD(Optimizer):
 
         This method performs training sequential models
         """
-
-    def optimize_param(self, parameter: mg.Tensor) -> None:
         if id(parameter) not in self.momentums:
             self.momentums[id(parameter)] = np.zeros_like(parameter.data)
 
         # Store the previous momentum update
         prev_momentum = self.momentums[id(parameter)]
 
-        # Calculate the current momentum update (this is the same as standard momentum)
-        current_momentum = self.momentum * prev_momentum - self.get_current_lr() * parameter.grad
+        current_momentum = self.momentum * prev_momentum - self.get_current_lr() \
+            * parameter.grad
         self.momentums[id(parameter)] = current_momentum
 
-        # Apply the Nesterov "lookahead" correction to the update
-        parameter.data += -self.momentum * prev_momentum + (1 + self.momentum) * current_momentum
+        parameter.data += -self.momentum * prev_momentum + (1 + self.momentum) * \
+            current_momentum

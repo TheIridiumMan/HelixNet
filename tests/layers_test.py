@@ -110,9 +110,10 @@ class DenseTests(unittest.TestCase):
         self.assertEqual(mat.output_shape(), (64,))
 
         mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.output_shape(), (2,3,4))
-        mat = layers.Dense( 64,(2, 3, 4), lambda x: x, use_bias=True)
-        self.assertEqual(mat.output_shape(), (2,3,4))
+        self.assertEqual(mat.output_shape(), (2, 3, 4))
+        mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=True)
+        self.assertEqual(mat.output_shape(), (2, 3, 4))
+
 
 class MiscLayerTest(unittest.TestCase):
     def test_input_shape_outputShape(self):
@@ -146,6 +147,42 @@ class MiscLayerTest(unittest.TestCase):
     def test_flatten_forward(self):
         layer = layers.Flatten()
         self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
-                         (78, 15*32*44))
+                         (78, 15 * 32 * 44))
+
+
+class BatchNormTests(unittest.TestCase):
+    def test_params_init(self):
+        layer = layers.BatchNorm((784, 128))
+        self.assertTupleEqual(layer.weight.shape, (784, 128))
+        self.assertTupleEqual(layer.bias.shape, (128,))
+
+        layer = layers.BatchNorm((85, 87))
+        self.assertTupleEqual(layer.weight.shape, (85, 87))
+        self.assertTupleEqual(layer.bias.shape, (87,))
+
+    def test_forward(self):
+        x = np.random.randint(0, 500, size=(784, 128))
+        layer = layers.BatchNorm((784, 128))
+        y = layer.forward(x)
+        self.assertFalse((x == y).all())
+
+
+class DropoutTests(unittest.TestCase):
+    def test_forward(self):
+        x = np.random.randint(1, 500, size=(784, 128))
+        layer = layers.Dropout(0.2)
+        y = layer.forward(x)
+        # This assert ensures that x and y aren't any common element
+        self.assertTrue((x != y).any())
+        self.assertTrue(np.allclose(np.count_nonzero(y) /
+                                    (784 * 128), 0.8, 1e-2))
+
+    def test_predict(self):
+        x = np.random.randint(1, 500, size=(784, 128))
+        layer = layers.Dropout(0.2)
+        y = layer.predict(x)
+        self.assertTrue((x == y).all())
+
+
 if __name__ == '__main__':
     unittest.main()
