@@ -172,7 +172,7 @@ class DropoutTests(unittest.TestCase):
         x = np.random.randint(1, 500, size=(784, 128))
         layer = layers.Dropout(0.2)
         y = layer.forward(x)
-        # This assert ensures that x and y aren't identically equally
+        # This assert ensures that x and y aren't any common element
         self.assertTrue((x != y).any())
         self.assertTrue(np.allclose(np.count_nonzero(y) /
                                     (784 * 128), 0.8, 1e-2))
