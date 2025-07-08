@@ -28,12 +28,12 @@ lr2 = layers.Dense(128, 64, activation=activations.ReLU, dtype=mg.float64)
 lr3 = layers.Dense(64, 64, activation=activations.ReLU, dtype=mg.float64)
 lr4 = layers.Dense(64, 3, activation=(lambda x: x), dtype=mg.float64)
 model = models.Sequential([lr1, lr2, lr3, lr4])
-optim = optimizers.SGD(0.01, 0.0001)
+optim = optimizers.Adam(0.01)
 
 losses = []
 accs = []
 try:
-    for i in track(range(10000), description="Training..."):
+    for i in track(range(2000), description="Training..."):
         # The forward pass now produces probabilities because of softmax
         pred_probs = model.forward(X)
 

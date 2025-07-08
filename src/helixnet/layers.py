@@ -158,7 +158,7 @@ class Dense(Layer):
             raise NotImplementedError("Creating model with training data is not"
                                       "Supported yet. Use pickle instead")
 
-    def output_shape(self, prev_shape: Optional[Tuple[int]]=None) -> Tuple[int]:
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         return self.out_sh
 
 # Well class _MaxPoolND taken from MyGrad.nnet implementation but it doesn't use
@@ -293,7 +293,7 @@ class Conv2D(Layer):
         Any function or object with ``__call__()`` method.
     :param bool use_bias: Whether to have a bias or not.
 
-    :class:`helixnet.layers.Conv2D` assumes input data is of 
+    :class:`helixnet.layers.Conv2D` assumes input data is of
         shape **(N, C_in, H, W)**:
 
     **N**: batch size
@@ -316,7 +316,7 @@ class Conv2D(Layer):
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
             np.random.randn(*weight_shape) * np.sqrt(2. /
-                                (input_channels * kernel_size[0] * kernel_size[1]))
+                                                     (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -418,8 +418,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size) * \
-                np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size)
+            * np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
@@ -433,7 +433,7 @@ class LSTMCell(Layer):
         """
         Performs a forward pass for a single timestep.
 
-        
+
         :param x_t (mg.Tensor): Input for the current timestep, shape (N, input_size).
         :param h_prev (mg.Tensor): Hidden state from the previous timestep, shape (N, hidden_size).
         :param C_prev (mg.Tensor): Cell state from the previous timestep, shape (N, hidden_size).
@@ -579,3 +579,75 @@ class InputShape(Layer):
     def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         """returns the input shape of layers"""
         return self.shape
+
+
+class Dropout(Layer):
+    """
+    A dropout layer
+
+    :param float proba: The percentage of inactive neurons
+    """
+
+    def __init__(self, proba: float) -> None:
+        self.proba = proba
+        super().__init__("Dropout", [])
+
+    def forward(self, X):
+        keep_proba = 1 - self.proba
+        mask = np.random.binomial(1, keep_proba, size=X.data.shape)
+        # The division scales up the active neurons to compensate for the dropped ones
+        return (X * mask) / keep_proba
+
+    def predict(self, X):
+        """
+        In the method :class:`helixnet.layers.Dropout.predict` 
+        the :class:`helixnet.layers.Dropout` won't perform the dropout and
+        pass the inputs directly.
+        """
+        return X
+
+
+class BatchNorm(Layer):
+    """
+    Performs batch normalization.
+
+    :param Tuple[int] input_shape: The shape of the input of the data
+    :param float momentum: The momentum of the layer
+    :param float epsilon: A simple number for numerical stability
+    """
+    def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
+        self.weight = np.random.randn(*input_shape)
+        self.bias = np.random.randn(*input_shape[1:])
+        super().__init__("BatchNorm", [self.weight, self.bias])
+
+        self.momentum = momentum
+        self.epsilon = epsilon
+
+        self.running_mean = np.zeros(input_shape)
+        self.running_var = np.ones(input_shape)
+        self.training = True # Start in training mode
+
+    def forward(self, X) -> mg.Tensor:
+        # During training, use batch statistics
+        batch_mean = mg.mean(X, axis=0)
+        batch_var = mg.var(X, axis=0)
+
+        # Update running averages
+        self.running_mean = self.momentum * self.running_mean + \
+                (1 - self.momentum) * batch_mean.data
+        self.running_var = self.momentum * self.running_var + \
+                (1 - self.momentum) * batch_var.data
+
+        # Normalize with batch statistics
+        normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
+
+        return self.weight * normalized_x + self.bias
+
+    def predict(self, X,*args, **kwargs) -> mg.Tensor:
+        """
+        Normalize the data without updating the running mean and variance
+
+        :param mg.Tensor X: The input of the data
+        """
+        normalized_x = (X - self.running_mean) / mg.sqrt(self.running_var + self.epsilon)
+        return self.weight * normalized_x + self.bias
