@@ -15,7 +15,7 @@ from mygrad import nnet
 
 from . import activations
 
-names: Dict[str, int] = dict()
+names: Dict[str, int] = {}
 
 
 class Layer(ABC):
@@ -315,8 +315,8 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) * np.sqrt(2. /
-                                                     (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape) * np.sqrt(2.
+                                                     / (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -418,8 +418,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size)
-            * np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size) *
+            np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
@@ -615,6 +615,7 @@ class BatchNorm(Layer):
     :param float momentum: The momentum of the layer
     :param float epsilon: A simple number for numerical stability
     """
+
     def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
         self.weight = np.random.randn(*input_shape)
         self.bias = np.random.randn(*input_shape[1:])
@@ -634,16 +635,16 @@ class BatchNorm(Layer):
 
         # Update running averages
         self.running_mean = self.momentum * self.running_mean + \
-                (1 - self.momentum) * batch_mean.data
+            (1 - self.momentum) * batch_mean.data
         self.running_var = self.momentum * self.running_var + \
-                (1 - self.momentum) * batch_var.data
+            (1 - self.momentum) * batch_var.data
 
         # Normalize with batch statistics
         normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
 
         return self.weight * normalized_x + self.bias
 
-    def predict(self, X,*args, **kwargs) -> mg.Tensor:
+    def predict(self, X, *args, **kwargs) -> mg.Tensor:
         """
         Normalize the data without updating the running mean and variance
 
@@ -651,3 +652,10 @@ class BatchNorm(Layer):
         """
         normalized_x = (X - self.running_mean) / mg.sqrt(self.running_var + self.epsilon)
         return self.weight * normalized_x + self.bias
+
+
+class TieConvTranspose:
+    def __init__(self, layer: Conv2D, activation=None, use_bias=None):
+        self.kernel = layer.weights
+        if (use_bias is None and layer.use_bias) or use_bias:
+            pass
