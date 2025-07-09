@@ -315,8 +315,8 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) * np.sqrt(2.
-                                                     / (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape) *
+            np.sqrt(2.0 / (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -418,8 +418,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size) *
-            np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size)
+            * np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
@@ -600,7 +600,7 @@ class Dropout(Layer):
 
     def predict(self, X):
         """
-        In the method :class:`helixnet.layers.Dropout.predict` 
+        In the method :class:`helixnet.layers.Dropout.predict`
         the :class:`helixnet.layers.Dropout` won't perform the dropout and
         pass the inputs directly.
         """
@@ -654,17 +654,19 @@ class BatchNorm(Layer):
             mg.sqrt(self.running_var + self.epsilon)
         return self.weight * normalized_x + self.bias
 
+
 class DenseTranspose(Layer):
     def __init__(self, layer: Dense, activation=None, use_bias=None):
         self.weight = layer.weights.T
-        if use_bias or (use_bias is not None and layer.use_bias):
+        if use_bias or (use_bias is None and layer.use_bias):
             self.bias = mg.tensor(np.zeros(self.weight.shape[1:]),
                                   constant=False)
+            super().__init__("DenseTranspose", [self.bias])
         else:
             self.bias = None
+            super().__init__("DenseTranspose", [])
         self.activation = layer.activation if not activation \
             else activation
-        super().__init__("DenseTranspose", [self.bias])
 
     def forward(self, X) -> mg.Tensor:
         return self.activation(X @ self.weight + self.bias) if self.bias \
@@ -674,8 +676,39 @@ class DenseTranspose(Layer):
         return self.weight.shape[1:]
     # TODO: Check a better implementation
 
-class TieConvTranspose:
-    def __init__(self, layer: Conv2D, activation=None, use_bias=None):
+
+class TieConvTranspose(Layer):
+    def __init__(self, layer: Conv2D, activation=None, stride=1, padding=0, use_bias=None):
         self.kernel = layer.weights
+        self.stride = stride if isinstance(stride, tuple) else (stride, stride)
+        self.padding = padding
         if (use_bias is None and layer.use_bias) or use_bias:
-            pass
+            self.bias = np.zeros(layer.bias.shape)
+            super().__init__("TiedConvolutionTranspose", [self.bias])
+        else:
+            self.bias = None
+            super().__init__("TiedConvolutionTranspose", [])
+
+    def forward(self, X):
+        _, __, h, w = self.kernel.shape
+        for i in range(self.padding):
+            X = mg.concatenate((X, np.zeros(X.shape)), axis=2)
+            X = mg.concatenate((np.zeros(X.shape), X), axis=2)
+            X = mg.concatenate((X, np.zeros(X.shape)), axis=3)
+            X = mg.concatenate((np.zeros(X.shape), X), axis=3)
+
+        res = mg.tensor(np.zeros((_, __, X.shape[0] + h - 1, X.shape[1] + w - 1)))
+
+        for i in range(0, X.shape[2], self.stride[0]):
+            for j in range(0, X.shape[3], self.stride[1]):
+                res[i:i + h, j:j + h] += X[i, j] * self.kernel
+        return res
+
+
+class Reshape(Layer):
+    def __init__(self, shape: List[int] = None) -> None:
+        self.target_shape = shape
+        super().__init__("Reshape", [])
+
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        return X.reshape(*self.target_shape)
