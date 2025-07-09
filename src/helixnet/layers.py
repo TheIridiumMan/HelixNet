@@ -615,9 +615,10 @@ class BatchNorm(Layer):
     :param float momentum: The momentum of the layer
     :param float epsilon: A simple number for numerical stability
     """
+
     def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
-        self.weight = np.random.randn(*input_shape)
-        self.bias = np.random.randn(*input_shape[1:])
+        self.weight = mg.tensor(np.random.randn(*input_shape))
+        self.bias = mg.tensor(np.random.randn(*input_shape[1:]))
         super().__init__("BatchNorm", [self.weight, self.bias])
 
         self.momentum = momentum
@@ -625,7 +626,7 @@ class BatchNorm(Layer):
 
         self.running_mean = np.zeros(input_shape)
         self.running_var = np.ones(input_shape)
-        self.training = True # Start in training mode
+        self.training = True  # Start in training mode
 
     def forward(self, X) -> mg.Tensor:
         # During training, use batch statistics
@@ -634,20 +635,42 @@ class BatchNorm(Layer):
 
         # Update running averages
         self.running_mean = self.momentum * self.running_mean + \
-                (1 - self.momentum) * batch_mean.data
+            (1 - self.momentum) * batch_mean.data
         self.running_var = self.momentum * self.running_var + \
-                (1 - self.momentum) * batch_var.data
+            (1 - self.momentum) * batch_var.data
 
         # Normalize with batch statistics
         normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
 
         return self.weight * normalized_x + self.bias
 
-    def predict(self, X,*args, **kwargs) -> mg.Tensor:
+    def predict(self, X, *args, **kwargs) -> mg.Tensor:
         """
         Normalize the data without updating the running mean and variance
 
         :param mg.Tensor X: The input of the data
         """
-        normalized_x = (X - self.running_mean) / mg.sqrt(self.running_var + self.epsilon)
+        normalized_x = (X - self.running_mean) / \
+            mg.sqrt(self.running_var + self.epsilon)
         return self.weight * normalized_x + self.bias
+
+
+class DenseTranspose(Layer):
+    def __init__(self, layer: Dense, activation=None, use_bias=None):
+        self.weight = layer.weights.T
+        if use_bias or (use_bias is not None and layer.use_bias):
+            self.bias = mg.tensor(np.zeros(self.weight.shape[1:]),
+                                  constant=False)
+        else:
+            self.bias = None
+        self.activation = layer.activation if not activation \
+            else activation
+        super().__init__("DenseTranspose", [self.bias])
+
+    def forward(self, X) -> mg.Tensor:
+        return self.activation(X @ self.weight + self.bias) if self.bias \
+            is not None else self.activation(X @ self.weight)
+
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = ()) -> Tuple[int]:
+        return self.weight.shape[1:]
+    # TODO: Check a better implementation
