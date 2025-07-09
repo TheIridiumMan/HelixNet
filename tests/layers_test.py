@@ -75,9 +75,11 @@ class DenseTests(unittest.TestCase):
 
     def test_tensor_in_out_init(self):
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
+        self.assertEqual(
+            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=True)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
+        self.assertEqual(
+            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
         self.assertEqual(mat.trainable_params[1].data.shape, (1, 5, 3, 4))
 
     def test_matrix_forward(self):
@@ -148,6 +150,11 @@ class MiscLayerTest(unittest.TestCase):
         layer = layers.Flatten()
         self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
                          (78, 15 * 32 * 44))
+
+    def test_flatten_output_shape(self):
+        self.assertTupleEqual(
+            layers.Flatten().forward(np.zeros((20, 5, 3, 7, 8))).shape,
+                              (20, 5*3*7*8))
 
 
 class BatchNormTests(unittest.TestCase):
