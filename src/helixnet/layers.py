@@ -677,38 +677,94 @@ class DenseTranspose(Layer):
     # TODO: Check a better implementation
 
 
-class TieConvTranspose(Layer):
-    def __init__(self, layer: Conv2D, activation=None, stride=1, padding=0, use_bias=None):
-        self.kernel = layer.weights
-        self.stride = stride if isinstance(stride, tuple) else (stride, stride)
-        self.padding = padding
-        if (use_bias is None and layer.use_bias) or use_bias:
-            self.bias = np.zeros(layer.bias.shape)
-            super().__init__("TiedConvolutionTranspose", [self.bias])
+def upsample_zero_insert(x, scale):
+    h, w = x.shape
+    up = np.zeros((h * scale, w * scale), dtype=x.dtype)
+    up[::scale, ::scale] = x
+    return up
+
+
+class ConvTranspose2D(Layer):
+    """
+    Performs a 2D transpose convolution (deconvolution), used for upsampling.
+    This implementation works by first upsampling the input with zero-insertion,
+    and then performing a standard convolution.
+
+    :param int input_channels: The number of channels in the input tensor.
+    :param int output_channels: The number of channels produced by the layer.
+    :param int kernel_size: The size of the convolution kernel.
+    :param int stride: The upsampling factor. Defaults to 1.
+    :param activation: The activation function to be applied.
+    :param bool use_bias: Whether the layer uses a bias vector.
+    """
+
+    def __init__(self, input_channels: int, output_channels: int, kernel_size,
+                 stride=1, activation=None, use_bias: bool = True):
+
+        if isinstance(kernel_size, int):
+            self.kernel_size = (kernel_size, kernel_size)
+        else:
+            self.kernel_size = kernel_size
+
+        # For ConvTranspose, the weight shape is (C_in, C_out, K_H, K_W)
+        weight_shape = (input_channels, output_channels, *self.kernel_size)
+        self.weights = mg.tensor(
+            np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * self.kernel_size[0] * self.kernel_size[1]))
+        )
+        self.stride = stride if isinstance(stride, int) else stride[0] # Assuming square stride for simplicity
+        self.activation = activation if activation is not None else (lambda x: x)
+        self.use_bias = use_bias
+
+        if self.use_bias:
+            self.bias = mg.tensor(np.zeros(output_channels))
+            super().__init__("ConvTranspose2D", [self.weights, self.bias])
         else:
             self.bias = None
-            super().__init__("TiedConvolutionTranspose", [])
+            super().__init__("ConvTranspose2D", [self.weights])
 
-    def forward(self, X):
-        _, __, h, w = self.kernel.shape
-        for i in range(self.padding):
-            X = mg.concatenate((X, np.zeros(X.shape)), axis=2)
-            X = mg.concatenate((np.zeros(X.shape), X), axis=2)
-            X = mg.concatenate((X, np.zeros(X.shape)), axis=3)
-            X = mg.concatenate((np.zeros(X.shape), X), axis=3)
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        """ Performs the transpose convolution using a two-step process. """
+        # --- Step 1: Upsample the input by inserting zeros ---
+        # If stride is 1, no upsampling is needed.
+        if self.stride > 1:
+            N, C, H, W = X.shape
+            H_up, W_up = H * self.stride, W * self.stride
 
-        res = mg.tensor(np.zeros((_, __, X.shape[0] + h - 1, X.shape[1] + w - 1)))
+            # Create an expanded tensor of zeros
+            # Note: We create a numpy array first, then convert to a tensor.
+            # This can sometimes be more stable for complex indexing operations.
+            upsampled_data = np.zeros((N, C, H_up, W_up), dtype=X.dtype)
 
-        for i in range(0, X.shape[2], self.stride[0]):
-            for j in range(0, X.shape[3], self.stride[1]):
-                res[i:i + h, j:j + h] += X[i, j] * self.kernel
-        return res
+            # Place the original data into the expanded tensor at strided intervals
+            upsampled_data[:, :, ::self.stride, ::self.stride] = X.data
+            X_upsampled = mg.tensor(upsampled_data)
+        else:
+            X_upsampled = X
+
+        # --- Step 2: Perform a "full" convolution on the upsampled data ---
+        # A "full" convolution requires padding of kernel_size - 1
+        padding = self.kernel_size[0] - 1
+
+        # The convolution now uses a stride of 1, as upsampling is complete.
+        conv_result = nnet.conv_nd(X_upsampled, self.weights, stride=1, padding=padding)
+
+        if self.use_bias:
+            conv_result += self.bias.reshape(1, -1, 1, 1)
+
+        return self.activation(conv_result)
 
 
 class Reshape(Layer):
-    def __init__(self, shape: List[int] = None) -> None:
-        self.target_shape = shape
+    """Reshapes the input tensor to the specified shape."""
+
+    def __init__(self, target_shape):
+        # target_shape does not include the batch dimension (N)
+        self.target_shape = target_shape
         super().__init__("Reshape", [])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
-        return X.reshape(*self.target_shape)
+        # The -1 in reshape is a placeholder for the batch size (N)
+        return X.reshape(-1, *self.target_shape)
+
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = ()) -> Tuple[int]:
+        return self.target_shape
