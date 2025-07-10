@@ -50,6 +50,15 @@ class ABCLayerTest(unittest.TestCase):
         layer1 = layers.Dense(256, 128, lambda x: x)
         self.assertEqual(layer1.total_params(), 256 * 128 + 128)
 
+    def test_save(self):
+        self.maxDiff = None
+        layer1 = layers.Dense(256, 128, lambda x: x)
+        expected = {
+            "weights": layer1.weights.data.tolist(),
+            "bias": layer1.bias.data.tolist()
+        }
+        self.assertDictEqual(layer1.save_layer(), expected)
+
 
 class DenseTests(unittest.TestCase):
     def test_matrix_init(self):
@@ -110,9 +119,10 @@ class DenseTests(unittest.TestCase):
         self.assertEqual(mat.output_shape(), (64,))
 
         mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.output_shape(), (2,3,4))
-        mat = layers.Dense( 64,(2, 3, 4), lambda x: x, use_bias=True)
-        self.assertEqual(mat.output_shape(), (2,3,4))
+        self.assertEqual(mat.output_shape(), (2, 3, 4))
+        mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=True)
+        self.assertEqual(mat.output_shape(), (2, 3, 4))
+
 
 class MiscLayerTest(unittest.TestCase):
     def test_input_shape_outputShape(self):
@@ -146,6 +156,8 @@ class MiscLayerTest(unittest.TestCase):
     def test_flatten_forward(self):
         layer = layers.Flatten()
         self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
-                         (78, 15*32*44))
+                         (78, 15 * 32 * 44))
+
+
 if __name__ == '__main__':
     unittest.main()
