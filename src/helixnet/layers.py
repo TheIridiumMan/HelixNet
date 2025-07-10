@@ -315,8 +315,8 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) *
-            np.sqrt(2.0 / (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape)
+            * np.sqrt(2.0 / (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -418,8 +418,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size)
-            * np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size) *
+            np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
@@ -699,7 +699,7 @@ class ConvTranspose2D(Layer):
     """
 
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
-                 stride=1, activation=None, use_bias: bool = True):
+                 stride=1, padding=None, activation=None, use_bias: bool = True):
 
         if isinstance(kernel_size, int):
             self.kernel_size = (kernel_size, kernel_size)
@@ -711,9 +711,11 @@ class ConvTranspose2D(Layer):
         self.weights = mg.tensor(
             np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * self.kernel_size[0] * self.kernel_size[1]))
         )
+
         self.stride = stride if isinstance(stride, int) else stride[0] # Assuming square stride for simplicity
         self.activation = activation if activation is not None else (lambda x: x)
         self.use_bias = use_bias
+        self.padding = padding
 
         if self.use_bias:
             self.bias = mg.tensor(np.zeros(output_channels))
@@ -743,10 +745,10 @@ class ConvTranspose2D(Layer):
 
         # --- Step 2: Perform a "full" convolution on the upsampled data ---
         # A "full" convolution requires padding of kernel_size - 1
-        padding = self.kernel_size[0] - 1
+        padding = self.kernel_size[0] - 1 if self.padding is None else self.padding
 
         # The convolution now uses a stride of 1, as upsampling is complete.
-        conv_result = nnet.conv_nd(X_upsampled, self.weights, stride=1, padding=padding)
+        conv_result = nnet.conv_nd(X_upsampled, self.weights, stride=self.stride, padding=padding)
 
         if self.use_bias:
             conv_result += self.bias.reshape(1, -1, 1, 1)
