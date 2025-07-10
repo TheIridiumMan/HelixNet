@@ -107,6 +107,14 @@ class Layer(ABC):
             params += np.array(parameter.shape).prod()
         return params
 
+    def save_layer(self) -> Dict:
+        train_ids = [id(param) for param in self.trainable_params]
+        res = {}
+        for var_name, key in self.__dict__.items():
+            if id(key) in train_ids:
+                res[var_name] = key.data.tolist()
+        return res
+
 
 class Dense(Layer):
     """
