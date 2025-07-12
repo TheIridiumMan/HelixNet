@@ -434,7 +434,7 @@ class MaxPooling2D(Layer):
     """
 
     def __init__(self, pool_size, stride=None):
-        super().__init__("MaxPooling2D", [])
+        super().__init__([])
         if isinstance(pool_size, int):
             self.pool_size = (pool_size, pool_size)
         else:
@@ -637,7 +637,7 @@ class Dropout(Layer):
 
     def __init__(self, proba: float) -> None:
         self.proba = proba
-        super().__init__("Dropout", [])
+        super().__init__([])
 
     def forward(self, X):
         keep_proba = 1 - self.proba
@@ -666,7 +666,7 @@ class BatchNorm(Layer):
     def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
         self.weight = mg.tensor(np.random.randn(*input_shape))
         self.bias = mg.tensor(np.random.randn(*input_shape[1:]))
-        super().__init__("BatchNorm", [self.weight, self.bias])
+        super().__init__([self.weight, self.bias])
 
         self.momentum = momentum
         self.epsilon = epsilon
@@ -708,10 +708,10 @@ class DenseTranspose(Layer):
         if use_bias or (use_bias is None and layer.use_bias):
             self.bias = mg.tensor(np.zeros(self.weight.shape[1:]),
                                   constant=False)
-            super().__init__("DenseTranspose", [self.bias])
+            super().__init__([self.bias])
         else:
             self.bias = None
-            super().__init__("DenseTranspose", [])
+            super().__init__([])
         self.activation = layer.activation if not activation \
             else activation
 
@@ -761,10 +761,10 @@ class ConvTranspose2D(Layer):
 
         if self.use_bias:
             self.bias = mg.tensor(np.zeros(output_channels))
-            super().__init__("ConvTranspose2D", [self.weights, self.bias])
+            super().__init__([self.weights, self.bias])
         else:
             self.bias = None
-            super().__init__("ConvTranspose2D", [self.weights])
+            super().__init__([self.weights])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """ Performs the transpose convolution using a two-step process. """
@@ -801,7 +801,7 @@ class Reshape(Layer):
     def __init__(self, target_shape):
         # target_shape does not include the batch dimension (N)
         self.target_shape = target_shape
-        super().__init__("Reshape", [])
+        super().__init__([])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         # The -1 in reshape is a placeholder for the batch size (N)
