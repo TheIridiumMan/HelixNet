@@ -11,7 +11,7 @@ class Sequential:
     
     :param list layer: the list which contains the layers"""
 
-    def __init__(self, layers_: List[layers.Layer]) -> None:
+    def __init__(self, layers_: list[layers.Layer]) -> None:
         self.layers = layers_
 
     def forward(self, x: mg.Tensor) -> mg.Tensor:
@@ -80,37 +80,6 @@ class Sequential:
             x = layer.predict(x)
         return x
 
-
-def save_layer(layer: layers.Layer) -> Dict[str, List[List[float]]]:
-    """
-    This converts the layer into dictionary.
-    
-    .. warning::
-        It will discard the gradients of parameters
-
-    :param layers.Layer layer: The layer that will be saved
-    :return Dict[str, List[List[float]]]: The dictionary that holds information
-        about the model which will be saved to JSON later
-    """
-    output = {}
-    output["name"] = layer.name
-    output["type"] = layer.type
-    for i, parameter in enumerate(layer.trainable_params):
-        parameter: mg.Tensor
-        output[f"param_{i}"] = parameter.data.tolist()
-    return output
-
-
-def load_layer(struct: Dict[str, List[List[float]]],
-               extra_layers: Dict[str, layers.Layer] = None) -> layers.Layer:
-    """
-    loads layers from dictionary that is created by :func:`helixnet.models.save_layer`
-    
-    :return layers.Layer: The layer that will be loaded
-    :param Dict[str, List[List[float]]] layer: The dictionary that holds information
-        about the model which will be loaded to :class:`helixnet.layers.Layer`
-    :param Dict[str, layers.Layer] extra_layers: A dictionary that holds information
-        for custom created :class:`helixnet.layers.Layer`
-    """
-    layer_map = layers.layers_map | dict(extra_layers)
-    output = layer_map[struct["type"]]()
+    def set_weights(self, weights: list[mg.Tensor]):
+        for layer, weight in zip(self.layers, weights):
+            layer.set_weights(weight)

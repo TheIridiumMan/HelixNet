@@ -37,6 +37,7 @@ class Layer(ABC):
                  save_too: set = None) -> None:
         self.type = self.__class__.__name__
         # self.total_params = total_params
+        self._config = self._get_current_config()
         self.trainable_params: List[mg.Tensor] = trainable_params
         self.save_too = {id(i) for i in save_too} if save_too else None
         if trainable_params != []:
@@ -117,58 +118,41 @@ class Layer(ABC):
             params += np.array(parameter.shape).prod()
         return params
 
-    def get_weights(self):
+    def _get_current_config(self) -> dict:
+        """
+        An internal helper to automatically capture the constructor's arguments.
+        This is a bit of advanced Python ("introspection").
+        """
+        # Get the class of the object being created (e.g., Dense, Conv2D)
+        cls = self.__class__
+        # Get the signature of its __init__ method
+        init_signature = inspect.signature(cls.__init__)
+
+        # Get the names of the arguments
+        arg_names = [p.name for p in init_signature.parameters.values() if p.name != 'self']
+
+        # Create a dictionary of these arguments and their current values
+        config = {}
+        for name in arg_names:
+            if hasattr(self, name):
+                value = getattr(self, name)
+                # Make it JSON-safe
+                if callable(value):
+                    config[name] = value.__name__
+                elif isinstance(value, (int, str, float, bool, list, tuple, type(None))):
+                    config[name] = value
+        return config
+
+    def get_config(self) -> dict:
+        """Public method to get the stored configuration."""
+        return self._config
+
+    def get_weights(self) -> List[np.ndarray]:
         return [p.data for p in self.trainable_params]
 
     def set_weights(self, weights: List[np.ndarray]):
-        """Sets the layer's weights from a list of NumPy arrays."""
         for param, weight_array in zip(self.trainable_params, weights):
             param.data = weight_array
-
-    def save_layer(self) -> Dict:
-        # Since NumPy will need to check using any() or all()
-        # we will use the id.
-        train_ids = [id(param) for param in self.trainable_params]
-        res = {}
-        res["type"] = self.type
-        needs_save = self.save_too.copy() if self.save_too else None
-        for key, value in self.__dict__.items():
-            if id(value) in train_ids:
-                res[key] = value.data.tolist()
-            elif needs_save is not None:  # To avoid NoneType comparison
-                if id(value) in needs_save:
-                    print(f"{type(value)=} {type(self)=}")
-                    if issubclass(type(value), Layer):
-                        # In case of layer having other layers
-                        res[key] = value.save_layer()
-                    else:
-                        res[key] = value
-        return res | self.get_config()
-
-    def get_config(self) -> dict:
-        """
-        Automatically creates a serializable config for the layer by inspecting
-        its __init__ method and finding matching attributes.
-        """
-        # Get the names of all arguments in this layer's __init__ method
-        config = {}
-        init_signature = inspect.signature(self.__init__)
-        init_arg_names = [p.name for p in init_signature.parameters.values()]
-
-        for name in init_arg_names:
-            if hasattr(self, name):
-                value = getattr(self, name)
-
-                # Serialize the value based on its type
-                if isinstance(value, mg.Tensor):
-                    config[name] = value.data.tolist()
-                elif callable(value):
-                    config[name] = value.__name__
-                elif isinstance(value, (int, float, str, bool, tuple, list, type(None))):
-                    config[name] = value
-                # Add other types as needed
-
-        return config
 
 
 class Dense(Layer):
@@ -380,9 +364,9 @@ class Conv2D(Layer):
         # Shape: (C_out, C_in, K_H, K_W)
         weight_shape = (output_channels, input_channels, *kernel_size)
         self.weights = mg.tensor(
-            np.random.randn(*weight_shape) *
-            np.sqrt(2. /
-                    (input_channels * kernel_size[0] * kernel_size[1]))
+            np.random.randn(*weight_shape)
+            * np.sqrt(2.
+                    / (input_channels * kernel_size[0] * kernel_size[1]))
         )
 
         self.use_bias = use_bias
@@ -483,8 +467,8 @@ class LSTMCell(Layer):
 
         # We create one large weight matrix for all 4 gates (input, forget, candidate, output)
         self.weights_all = mg.tensor(
-            np.random.randn(concat_size, 4 * hidden_size)
-            * np.sqrt(2. / concat_size), dtype=mg.float32)
+            np.random.randn(concat_size, 4 * hidden_size) *
+            np.sqrt(2. / concat_size), dtype=mg.float32)
 
         # We also create one large bias vector for all 4 gates.
         self.bias_all = mg.tensor(
