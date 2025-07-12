@@ -6,20 +6,20 @@ import numpy as np
 
 class ABCLayerTest(unittest.TestCase):
     def test_Name_Generation(self):
-        case = layers.Layer("D", [])
-        self.assertEqual("D", case.name)
-        self.assertEqual("D", case.type)
-        case = layers.Layer("D", [mg.zeros((2, 3))])
-        self.assertEqual("D 1", case.name)
-        self.assertEqual("D", case.type)
-        case = layers.Layer("D", [mg.zeros((7, 50))])
-        self.assertEqual("D 2", case.name)
-        self.assertEqual("D", case.type)
+        case = layers.Dense(10, 2, lambda x: x)
+        self.assertEqual("Dense 1", case.name)
+        self.assertEqual("Dense", case.type)
+        case = layers.Flatten()
+        self.assertEqual("Flatten", case.name)
+        self.assertEqual("Flatten", case.type)
+        case = layers.Dense(10, 2, lambda x: x)
+        self.assertEqual("Dense 2", case.name)
+        self.assertEqual("Dense", case.type)
 
     def test_Total_Params(self):
-        case = layers.Layer("D", [mg.zeros((2, 3))])
+        case = layers.Layer([mg.zeros((2, 3))])
         self.assertEqual(case.total_params(), 6)
-        case = layers.Layer("D", [mg.zeros((2, 3)), mg.zeros(3)])
+        case = layers.Layer([mg.zeros((2, 3)), mg.zeros(3)])
         self.assertEqual(case.total_params(), 9)
 
     def test_null_grads(self):
@@ -50,9 +50,18 @@ class ABCLayerTest(unittest.TestCase):
         layer1 = layers.Dense(256, 128, lambda x: x)
         self.assertEqual(layer1.total_params(), 256 * 128 + 128)
 
-    def test_save(self):
+    def test_basic_save(self):
         self.maxDiff = None
         layer1 = layers.Dense(256, 128, lambda x: x)
+        expected = {
+            "weights": layer1.weights.data.tolist(),
+            "bias": layer1.bias.data.tolist()
+        }
+        self.assertDictEqual(layer1.save_layer(), expected)
+
+    def test_extra_attr_save(self):
+        self.maxDiff = None
+        layer1 = layers.LSTMLayer(256, 128)
         expected = {
             "weights": layer1.weights.data.tolist(),
             "bias": layer1.bias.data.tolist()

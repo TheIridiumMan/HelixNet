@@ -4,6 +4,7 @@ This module contains layers.
 from typing import List, Dict, Tuple, Optional
 from abc import ABC
 from numbers import Integral  # Max Pooling
+import inspect
 
 from mygrad.operation_base import Operation
 from mygrad.tensor_base import Tensor
@@ -32,22 +33,31 @@ class Layer(ABC):
     use their type name without counting.
     """
 
-    def __init__(self, type_: str, trainable_params: List[mg.Tensor]) -> None:
-        self.type = type_
+    def __init__(self, trainable_params: List[mg.Tensor],
+                 save_too: set = None) -> None:
+        self.type = self.__class__.__name__
         # self.total_params = total_params
         self.trainable_params: List[mg.Tensor] = trainable_params
-        # TODO: Add parameters testing (e.g. they are tensors not ndarray)
+        self.save_too = {id(i) for i in save_too} if save_too else None
         if trainable_params != []:
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
-            if (number := names.get(type_)):
-                self.name = type_ + " " + str(number)
-                names[type_] += 1
+            if (number := names.get(self.__class__.__name__)):
+                self.name = self.__class__.__name__ + " " + str(number)
+                names[self.__class__.__name__] += 1
             else:
-                self.name = type_ + " 1"
-                names[type_] = 2  # Because we already used `1`
+                self.name = self.__class__.__name__ + " 1"
+                names[self.__class__.__name__] = 2  # Because we already used `1`
+            for i, parameter in enumerate(trainable_params):
+                if isinstance(parameter, np.ndarray):
+                    parameter = mg.tensor(parameter, constant=False)
+                elif isinstance(parameter, mg.Tensor):
+                    continue
+                else:
+                    raise TypeError(f"The parameter of {type(parameter)} at index {i}"
+                                    f" must be np.ndarray or mygrad.Tensor")
         else:
-            self.name = type_
+            self.name = self.__class__.__name__
 
     def __call__(self, *args, **kwargs) -> mg.Tensor:
         """
@@ -107,13 +117,58 @@ class Layer(ABC):
             params += np.array(parameter.shape).prod()
         return params
 
+    def get_weights(self):
+        return [p.data for p in self.trainable_params]
+
+    def set_weights(self, weights: List[np.ndarray]):
+        """Sets the layer's weights from a list of NumPy arrays."""
+        for param, weight_array in zip(self.trainable_params, weights):
+            param.data = weight_array
+
     def save_layer(self) -> Dict:
+        # Since NumPy will need to check using any() or all()
+        # we will use the id.
         train_ids = [id(param) for param in self.trainable_params]
         res = {}
-        for var_name, key in self.__dict__.items():
-            if id(key) in train_ids:
-                res[var_name] = key.data.tolist()
-        return res
+        res["type"] = self.type
+        needs_save = self.save_too.copy() if self.save_too else None
+        for key, value in self.__dict__.items():
+            if id(value) in train_ids:
+                res[key] = value.data.tolist()
+            elif needs_save is not None:  # To avoid NoneType comparison
+                if id(value) in needs_save:
+                    print(f"{type(value)=} {type(self)=}")
+                    if issubclass(type(value), Layer):
+                        # In case of layer having other layers
+                        res[key] = value.save_layer()
+                    else:
+                        res[key] = value
+        return res | self.get_config()
+
+    def get_config(self) -> dict:
+        """
+        Automatically creates a serializable config for the layer by inspecting
+        its __init__ method and finding matching attributes.
+        """
+        # Get the names of all arguments in this layer's __init__ method
+        config = {}
+        init_signature = inspect.signature(self.__init__)
+        init_arg_names = [p.name for p in init_signature.parameters.values()]
+
+        for name in init_arg_names:
+            if hasattr(self, name):
+                value = getattr(self, name)
+
+                # Serialize the value based on its type
+                if isinstance(value, mg.Tensor):
+                    config[name] = value.data.tolist()
+                elif callable(value):
+                    config[name] = value.__name__
+                elif isinstance(value, (int, float, str, bool, tuple, list, type(None))):
+                    config[name] = value
+                # Add other types as needed
+
+        return config
 
 
 class Dense(Layer):
@@ -142,9 +197,9 @@ class Dense(Layer):
         if self.use_bias:
             self.bias = mg.tensor(np.random.randn(1, *self.out_sh), constant=False,
                                   dtype=dtype)
-            super().__init__("Dense", [self.weights, self.bias])
+            super().__init__([self.weights, self.bias])
         else:
-            super().__init__("Dense", [self.weights])
+            super().__init__([self.weights])
 
     def forward(self, X: np.array):
         """
@@ -331,17 +386,17 @@ class Conv2D(Layer):
         )
 
         self.use_bias = use_bias
+        self.activation = activation
         if self.use_bias:
             # Bias has one value per output channel
             self.bias = mg.tensor(np.zeros(output_channels))
-            super().__init__("Conv2D", [self.weights, self.bias])
+            super().__init__([self.weights, self.bias])
         else:
             self.bias = None
-            super().__init__("Conv2D", [self.weights])
+            super().__init__([self.weights])
 
         self.stride = stride
         self.padding = padding
-        self.activation = activation
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -364,8 +419,8 @@ class Flatten(Layer):
     A simple flatten layer that turns it's inputs into a flat layer
     """
 
-    def __init__(self, input_shape: Optional[Tuple[int]] = None):
-        super().__init__("Flatten", [])
+    def __init__(self):
+        super().__init__([])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -437,7 +492,7 @@ class LSTMCell(Layer):
         # A common practice is to initialize the forget gate bias to 1.0 to encourage remembering.
         self.bias_all.data[:, hidden_size: 2 * hidden_size] = 1.0
 
-        super().__init__("LSTMCell", [self.weights_all, self.bias_all])
+        super().__init__([self.weights_all, self.bias_all])
 
     def forward(self, x_t: mg.Tensor, h_prev: mg.Tensor, C_prev: mg.Tensor):
         """
@@ -494,7 +549,7 @@ class LSTMLayer(Layer):
         self.bias = self.cell.bias_all
         # LSTM layer doesn't need its own use_bias attribute, it's handled by the cell
         self.use_bias = True
-        super().__init__("LSTM", [self.weights, self.bias])
+        super().__init__([self.weights, self.bias], {self.cell})
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -555,7 +610,7 @@ class Embedding(Layer):
         self.weight = mg.tensor((np.random.rand(vocab_size, dim) - 0.5) / dim,
                                 constant=False)
 
-        super().__init__("Embedding", [self.weight])
+        super().__init__([self.weight])
 
     def forward(self, X: mg.Tensor):
         return self.weight[X]
@@ -574,7 +629,7 @@ class InputShape(Layer):
                  ensure_shape: Optional[bool] = True) -> None:
         self.shape = tuple(shape)
         self.ensure_shape = ensure_shape
-        super().__init__("Input Shape", [])
+        super().__init__([])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """Just returns the inputs"""
