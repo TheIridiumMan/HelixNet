@@ -18,7 +18,7 @@ class Regularizer(ABC):
         """
         :param mg.Tensor parameter: the parameter that will be regularized
 
-        This method should be overloaded by the regularizers because this method 
+        This method should be overloaded by the regularizers because this method
             will perform the calculations
         """
 
@@ -31,12 +31,16 @@ class Optimizer(ABC):
     :param float lr: The learn rate of the optimizer
     :param List[Regularizer] regularizers: The regularizers that
         will be applied to the parameters by the optimizer
+    :param float grad_clip: The values which the gradients will be clipped to it. Or
+        pass ``None`` in order to avoid performing gradient clipping
     """
 
-    def __init__(self, lr: float, regularizers: List[Regularizer] = None) -> None:
+    def __init__(self, lr: float, regularizers: List[Regularizer] = None,
+                 grad_clip=None) -> None:
         self.step = 1
         self.regularizers = regularizers
         self.lr = lr
+        self.grad_clip_value = grad_clip
 
     def epoch_done(self):
         """
@@ -66,9 +70,9 @@ class Optimizer(ABC):
     def optimize(self, model: models.Sequential, loss: mg.Tensor) -> None:
         """
         This method trains models and calls optimise_param
-            for every parameter in the layer and it's called 
+            for every parameter in the layer and it's called
             when the training happens
-        Also if there any parameter in the model that doesn't 
+        Also if there any parameter in the model that doesn't
             have any gradients it will skip it.
 
         :param (models.Sequential) model: The model that will be trained
@@ -84,6 +88,16 @@ class Optimizer(ABC):
                                    for reg in self.regularizers])
 
         loss.backward()
+        if self.grad_clip_value is not None:
+            all_grads = [p.grad for layer in model.layers for p in layer.trainable_params if p.grad is not None]
+            if all_grads: # Ensure there are gradients to process
+                # Calculate the L2 norm of all gradients combined
+                norm = np.sqrt(sum(np.sum(g**2) for g in all_grads))
+                if norm > self.grad_clip_value:
+                    # Scale all gradients down if the norm is too high
+                    scaling_factor = self.grad_clip_value / norm
+                    for grad_tensor in all_grads:
+                        grad_tensor *= scaling_factor
         for layer in model.layers:
             for parameter in layer.trainable_params:
                 if parameter.grad is None:
@@ -98,7 +112,7 @@ class SGD(Optimizer):
     """
 
     def __init__(self, lr, decay=None, momentum=None,
-                 regularizers: List[Regularizer] = None) -> None:
+                 regularizers: List[Regularizer] = None, clip=None) -> None:
         """
         :param float lr: The learn rate of the optimiser
         :param float decay: The rate of learn rate decay can be ``None`` or
@@ -112,7 +126,7 @@ class SGD(Optimizer):
         self.momentum = momentum
         if self.momentum:
             self.momentums = {}
-        super().__init__(lr, regularizers)
+        super().__init__(lr, regularizers, clip)
 
     def get_current_lr(self):
         """
@@ -153,7 +167,7 @@ class Adam(Optimizer):
 
     def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999,
-                 regularizers: List[Regularizer] = None) -> None:
+                 regularizers: List[Regularizer] = None, clip=None) -> None:
         self.lr = self.init_lr = learning_rate
         self.decay = decay
 
@@ -162,7 +176,7 @@ class Adam(Optimizer):
         self.beta_2 = beta_2
         self.momentum = {}
         self.cache = {}
-        super().__init__(learning_rate, regularizers)
+        super().__init__(learning_rate, regularizers, clip)
 
     def get_current_lr(self) -> float:
         """
@@ -182,12 +196,16 @@ class Adam(Optimizer):
         self.momentum[id(parameter)] = (self.beta_1 *
                                         self.momentum[id(parameter)] +
                                         (1 - self.beta_1) * parameter.grad)
+
         param_momentum_corrected = (self.momentum[id(parameter)]
-                                    / ((1 - self.beta_1)**(self.step + 1)))
+                                    / ((1 - self.beta_1)**(self.step)))
+
         self.cache[id(parameter)] = (self.beta_2 * self.cache[id(parameter)]
                                      + (1 - self.beta_2) * parameter.grad**2)
+
         param_cache_corrected = (self.cache[id(parameter)]
-                                 / (1 - self.beta_2 ** (self.step + 1)))
+                                 / (1 - self.beta_2 ** (self.step)))
+
         parameter.data += -self.lr * param_momentum_corrected / \
             (np.sqrt(param_cache_corrected) + self.epilson)
 
@@ -263,3 +281,53 @@ class RMSProp(Optimizer):
         parameter.data += -self.lr * \
             parameter.grad / \
             (np.sqrt(self.cache[id(parameter)]) + self.epsilon)
+
+
+class NesterovSGD(Optimizer):
+    """
+    A Nesterov Stochastic Gradient Descend optimizer.
+
+    :param float lr: The learn rate of the optimiser
+    :param float decay: The rate of learn rate decay can be ``None`` or
+        ``False`` in order to avoid decay
+    :param float momentum: The momentum value
+    :param list regularizers: The list which contains the regularizers
+    """
+
+    def __init__(self, lr, decay=None, momentum=0.9,
+                 regularizers: List[Regularizer] = None, clip=None) -> None:
+        self.lr = self.init_lr = lr
+        self.decay = decay
+        self.momentum = momentum
+        if self.momentum:
+            self.momentums = {}
+        super().__init__(lr, regularizers, clip)
+
+    def get_current_lr(self):
+        """
+        :return: The learn rate with decay if existed
+        :rtype: float
+
+        This method returns the learn rate with respect to the current step
+        """
+        return self.init_lr * \
+            (1. / (1 + self.decay * self.step)) if self.decay else self.lr
+
+    def optimize_param(self, parameter: mg.Tensor) -> None:
+        """
+        :param mg.Tensor model: The model that needs to be trained
+
+        This method performs training sequential models
+        """
+        if id(parameter) not in self.momentums:
+            self.momentums[id(parameter)] = np.zeros_like(parameter.data)
+
+        # Store the previous momentum update
+        prev_momentum = self.momentums[id(parameter)]
+
+        current_momentum = self.momentum * prev_momentum - self.get_current_lr() \
+            * parameter.grad
+        self.momentums[id(parameter)] = current_momentum
+
+        parameter.data += -self.momentum * prev_momentum + (1 + self.momentum) * \
+            current_momentum

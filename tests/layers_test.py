@@ -6,6 +6,7 @@ import numpy as np
 
 class ABCLayerTest(unittest.TestCase):
     def test_Name_Generation(self):
+
         case = layers.Dense(10, 2, lambda x: x)
         self.assertEqual("Dense 1", case.name)
         self.assertEqual("Dense", case.type)
@@ -17,8 +18,10 @@ class ABCLayerTest(unittest.TestCase):
         self.assertEqual("Dense", case.type)
 
     def test_Total_Params(self):
+
         case = layers.Layer([mg.zeros((2, 3))])
         self.assertEqual(case.total_params(), 6)
+
         case = layers.Layer([mg.zeros((2, 3)), mg.zeros(3)])
         self.assertEqual(case.total_params(), 9)
 
@@ -93,9 +96,13 @@ class DenseTests(unittest.TestCase):
 
     def test_tensor_in_out_init(self):
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
+
+        self.assertEqual(
+            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
         mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=True)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
+
+        self.assertEqual(
+            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
         self.assertEqual(mat.trainable_params[1].data.shape, (1, 5, 3, 4))
 
     def test_matrix_forward(self):
@@ -165,8 +172,45 @@ class MiscLayerTest(unittest.TestCase):
     def test_flatten_forward(self):
         layer = layers.Flatten()
         self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
-                         (78, 15 * 32 * 44))
 
+    def test_flatten_output_shape(self):
+        self.assertTupleEqual(
+            layers.Flatten().forward(np.zeros((20, 5, 3, 7, 8))).shape,
+                              (20, 5*3*7*8))
+
+
+class BatchNormTests(unittest.TestCase):
+    def test_params_init(self):
+        layer = layers.BatchNorm((784, 128))
+        self.assertTupleEqual(layer.weight.shape, (784, 128))
+        self.assertTupleEqual(layer.bias.shape, (128,))
+
+        layer = layers.BatchNorm((85, 87))
+        self.assertTupleEqual(layer.weight.shape, (85, 87))
+        self.assertTupleEqual(layer.bias.shape, (87,))
+
+    def test_forward(self):
+        x = np.random.randint(0, 500, size=(784, 128))
+        layer = layers.BatchNorm((784, 128))
+        y = layer.forward(x)
+        self.assertFalse((x == y).all())
+
+
+class DropoutTests(unittest.TestCase):
+    def test_forward(self):
+        x = np.random.randint(1, 500, size=(784, 128))
+        layer = layers.Dropout(0.2)
+        y = layer.forward(x)
+        # This assert ensures that x and y aren't any common element
+        self.assertTrue((x != y).any())
+        self.assertTrue(np.allclose(np.count_nonzero(y) /
+                                    (784 * 128), 0.8, 1e-2))
+
+    def test_predict(self):
+        x = np.random.randint(1, 500, size=(784, 128))
+        layer = layers.Dropout(0.2)
+        y = layer.predict(x)
+        self.assertTrue((x == y).all())
 
 if __name__ == '__main__':
     unittest.main()

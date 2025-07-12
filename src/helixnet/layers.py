@@ -39,14 +39,17 @@ class Layer(ABC):
         # self.total_params = total_params
         self._config = self._get_current_config()
         self.trainable_params: List[mg.Tensor] = trainable_params
+
         self.save_too = {id(i) for i in save_too} if save_too else None
         if trainable_params != []:
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
+
             if (number := names.get(self.__class__.__name__)):
                 self.name = self.__class__.__name__ + " " + str(number)
                 names[self.__class__.__name__] += 1
             else:
+
                 self.name = self.__class__.__name__ + " 1"
                 names[self.__class__.__name__] = 2  # Because we already used `1`
             for i, parameter in enumerate(trainable_params):
@@ -58,6 +61,7 @@ class Layer(ABC):
                     raise TypeError(f"The parameter of {type(parameter)} at index {i}"
                                     f" must be np.ndarray or mygrad.Tensor")
         else:
+
             self.name = self.__class__.__name__
 
     def __call__(self, *args, **kwargs) -> mg.Tensor:
@@ -181,8 +185,10 @@ class Dense(Layer):
         if self.use_bias:
             self.bias = mg.tensor(np.random.randn(1, *self.out_sh), constant=False,
                                   dtype=dtype)
+
             super().__init__([self.weights, self.bias])
         else:
+
             super().__init__([self.weights])
 
     def forward(self, X: np.array):
@@ -195,16 +201,7 @@ class Dense(Layer):
             output += self.bias
         return self.activation(output)
 
-    def to_dict(self, inference_only=False) -> dict:
-        res = {}
-        res["weights"] = self.weights
-        res["func"] = self.activation.__name__
-        if self.use_bias:
-            res["bias"] = self.bias
-        if not inference_only:
-            raise NotImplementedError("Creating model with training data is not"
-                                      "Supported yet. Use pickle instead")
-        return res
+
 
     def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         return self.out_sh
@@ -237,6 +234,7 @@ class _MaxPoolND(Operation):
         )
         # pylint: disable-next= W0201
         self.pool = pool  # (P0, ...)
+
         self.stride = stride  # (S0, ...) # pylint: disable= W0201
 
         num_pool = len(pool)
@@ -266,6 +264,7 @@ class _MaxPoolND(Operation):
         # (G0, ..., (N0, ...)) -> ((N0, ...), G0, ...)
         out = maxed.transpose(axes[-num_no_pool:] + axes[:-num_no_pool])
         return out if out.flags["C_CONTIGUOUS"] else np.ascontiguousarray(out)
+
 
     def backward_var(self, grad, index, **kwargs): # pylint: disable= R0914
         """Parameters
@@ -342,7 +341,7 @@ class Conv2D(Layer):
         Any function or object with ``__call__()`` method.
     :param bool use_bias: Whether to have a bias or not.
 
-    :class:`helixnet.layers.Conv2D` assumes input data is of 
+    :class:`helixnet.layers.Conv2D` assumes input data is of
         shape **(N, C_in, H, W)**:
 
     **N**: batch size
@@ -382,6 +381,7 @@ class Conv2D(Layer):
         self.stride = stride
         self.padding = padding
 
+
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
         Performs a forward pass.
@@ -414,9 +414,12 @@ class Flatten(Layer):
         Takes an input of shape (N, C, H, W) and flattens it
         to a shape of (N, C*H*W).
         """
+
         # The first dimension (batch size, N) is preserved.
         # The rest of the dimensions are flattened.
+
         return X.reshape(X.data.shape[0], -1)
+
 
     def output_shape(self, prev_shape: Tuple[int] = ()) -> Tuple[int]:
         return (np.array(prev_shape)[0:].prod(),)
@@ -482,7 +485,7 @@ class LSTMCell(Layer):
         """
         Performs a forward pass for a single timestep.
 
-        
+
         :param x_t (mg.Tensor): Input for the current timestep, shape (N, input_size).
         :param h_prev (mg.Tensor): Hidden state from the previous timestep, shape (N, hidden_size).
         :param C_prev (mg.Tensor): Cell state from the previous timestep, shape (N, hidden_size).
@@ -575,8 +578,6 @@ class LSTMLayer(Layer):
                 batch_size, 1, self.hidden_size) for out in outputs]
             return mg.concatenate(reshaped_outputs, axis=1)
 
-        # Return only the last hidden state
-        return outputs[-1]
 
 
 class Embedding(Layer):
@@ -627,13 +628,184 @@ class InputShape(Layer):
         return self.shape
 
 
-layers_map = {
-    "Dense": Dense,
-    "Conv2D": Conv2D,
-    "Flatten": Flatten,
-    "MaxPooling2D": MaxPooling2D,
-    "LSTMCell": LSTMCell,
-    "LSTMLayer": LSTMLayer,
-    "Embedding": Embedding,
-    "InputShape": InputShape
-}
+class Dropout(Layer):
+    """
+    A dropout layer
+
+    :param float proba: The percentage of inactive neurons
+    """
+
+    def __init__(self, proba: float) -> None:
+        self.proba = proba
+        super().__init__("Dropout", [])
+
+    def forward(self, X):
+        keep_proba = 1 - self.proba
+        mask = np.random.binomial(1, keep_proba, size=X.data.shape)
+        # The division scales up the active neurons to compensate for the dropped ones
+        return (X * mask) / keep_proba
+
+    def predict(self, X):
+        """
+        In the method :class:`helixnet.layers.Dropout.predict`
+        the :class:`helixnet.layers.Dropout` won't perform the dropout and
+        pass the inputs directly.
+        """
+        return X
+
+
+class BatchNorm(Layer):
+    """
+    Performs batch normalization.
+
+    :param Tuple[int] input_shape: The shape of the input of the data
+    :param float momentum: The momentum of the layer
+    :param float epsilon: A simple number for numerical stability
+    """
+
+    def __init__(self, input_shape: Tuple[int], momentum=0.99, epsilon=1e-7):
+        self.weight = mg.tensor(np.random.randn(*input_shape))
+        self.bias = mg.tensor(np.random.randn(*input_shape[1:]))
+        super().__init__("BatchNorm", [self.weight, self.bias])
+
+        self.momentum = momentum
+        self.epsilon = epsilon
+
+        self.running_mean = np.zeros(input_shape)
+        self.running_var = np.ones(input_shape)
+        self.training = True  # Start in training mode
+
+    def forward(self, X) -> mg.Tensor:
+        # During training, use batch statistics
+        batch_mean = mg.mean(X, axis=0)
+        batch_var = mg.var(X, axis=0)
+
+        # Update running averages
+        self.running_mean = self.momentum * self.running_mean + \
+            (1 - self.momentum) * batch_mean.data
+        self.running_var = self.momentum * self.running_var + \
+            (1 - self.momentum) * batch_var.data
+
+        # Normalize with batch statistics
+        normalized_x = (X - batch_mean) / mg.sqrt(batch_var + self.epsilon)
+
+        return self.weight * normalized_x + self.bias
+
+    def predict(self, X, *args, **kwargs) -> mg.Tensor:
+        """
+        Normalize the data without updating the running mean and variance
+
+        :param mg.Tensor X: The input of the data
+        """
+        normalized_x = (X - self.running_mean) / \
+            mg.sqrt(self.running_var + self.epsilon)
+        return self.weight * normalized_x + self.bias
+
+
+class DenseTranspose(Layer):
+    def __init__(self, layer: Dense, activation=None, use_bias=None):
+        self.weight = layer.weights.T
+        if use_bias or (use_bias is None and layer.use_bias):
+            self.bias = mg.tensor(np.zeros(self.weight.shape[1:]),
+                                  constant=False)
+            super().__init__("DenseTranspose", [self.bias])
+        else:
+            self.bias = None
+            super().__init__("DenseTranspose", [])
+        self.activation = layer.activation if not activation \
+            else activation
+
+    def forward(self, X) -> mg.Tensor:
+        return self.activation(X @ self.weight + self.bias) if self.bias \
+            is not None else self.activation(X @ self.weight)
+
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = ()) -> Tuple[int]:
+        return self.weight.shape[1:]
+    # TODO: Check a better implementation
+
+
+def upsample_zero_insert(x, scale):
+    h, w = x.shape
+    up = np.zeros((h * scale, w * scale), dtype=x.dtype)
+    up[::scale, ::scale] = x
+    return up
+
+
+class ConvTranspose2D(Layer):
+    """
+    Performs a 2D transpose convolution (deconvolution), used for upsampling.
+    This implementation works by first upsampling the input with zero-insertion,
+    and then performing a standard convolution.
+    """
+
+    def __init__(self, input_channels: int, output_channels: int, kernel_size,
+                 stride=1, activation=None, use_bias: bool = True):
+
+        if isinstance(kernel_size, int):
+            self.kernel_size = (kernel_size, kernel_size)
+        else:
+            self.kernel_size = kernel_size
+
+        # --- THE FIX IS HERE ---
+        # The weight shape for the underlying conv_nd MUST be (C_out, C_in, K, K)
+        # We are essentially "tricking" a regular convolution into being a transpose one.
+        weight_shape = (input_channels, output_channels, *self.kernel_size)
+        self.weights = mg.tensor(
+            np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * self.kernel_size[0] * self.kernel_size[1]))
+        )
+        # --- END FIX ---
+
+        self.stride = stride if isinstance(stride, int) else stride[0]
+        self.activation = activation if activation is not None else (lambda x: x)
+        self.use_bias = use_bias
+
+        if self.use_bias:
+            self.bias = mg.tensor(np.zeros(output_channels))
+            super().__init__("ConvTranspose2D", [self.weights, self.bias])
+        else:
+            self.bias = None
+            super().__init__("ConvTranspose2D", [self.weights])
+
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        """ Performs the transpose convolution using a two-step process. """
+        # Step 1: Upsample the input by inserting zeros
+        if self.stride > 1:
+            N, C, H, W = X.shape
+            # For a stride of 2, we want one zero between each element.
+            H_up, W_up = (H - 1) * self.stride + 1, (W - 1) * self.stride + 1
+            upsampled_data = np.zeros((N, C, H_up, W_up), dtype=X.dtype)
+            upsampled_data[:, :, ::self.stride, ::self.stride] = X.data
+            X_upsampled = mg.tensor(upsampled_data)
+        else:
+            X_upsampled = X
+
+        # Step 2: Perform a "full" convolution on the upsampled data
+        padding = self.kernel_size[0] - 1
+
+        # We need to swap the input/output channels for the convolution's weights
+        # to correctly perform the transpose operation.
+        # So we transpose the first two axes of the weights.
+        transposed_weights = self.weights.transpose(1, 0, 2, 3)
+
+        conv_result = nnet.conv_nd(X_upsampled, transposed_weights, stride=1, padding=padding)
+
+        if self.use_bias:
+            conv_result += self.bias.reshape(1, -1, 1, 1)
+
+        return self.activation(conv_result)
+
+
+class Reshape(Layer):
+    """Reshapes the input tensor to the specified shape."""
+
+    def __init__(self, target_shape):
+        # target_shape does not include the batch dimension (N)
+        self.target_shape = target_shape
+        super().__init__("Reshape", [])
+
+    def forward(self, X: mg.Tensor) -> mg.Tensor:
+        # The -1 in reshape is a placeholder for the batch size (N)
+        return X.reshape(-1, *self.target_shape)
+
+    def output_shape(self, prev_shape: Optional[Tuple[int]] = ()) -> Tuple[int]:
+        return self.target_shape

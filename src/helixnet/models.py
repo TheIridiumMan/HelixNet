@@ -1,7 +1,10 @@
+
 """This module contains model creation capablities and tools"""
 from typing import List, Tuple, Dict
 
+
 import mygrad as mg
+
 
 from helixnet import layers
 
@@ -10,6 +13,10 @@ class Sequential:
     """A Simple model that propagate through the layers in a linear way
     
     :param list layer: the list which contains the layers"""
+
+    def __init__(self, layers_: list[layers.Layer]) -> None:
+        self.layers = layers_
+
 
     def __init__(self, layers_: list[layers.Layer]) -> None:
         self.layers = layers_
@@ -42,10 +49,15 @@ class Sequential:
 
     def output_shape(self) -> Tuple[int]:
         """A simple function that shows the model's last layer's output shape"""
-        shape = tuple()
-        for layer in self.layers:
-            shape = layer.output_shape(shape)
-        return shape
+
+        try:
+            shape = tuple()
+            for layer in self.layers:
+                shape = layer.output_shape(shape)
+            return shape
+        except Exception as e:
+            raise Exception(f"An Error occurred at {layer.name=} with {shape=}\n"
+                            f"Err: {e.args}")
 
     def add(self, layer: layers.Layer) -> None:
         """This function can append layers to the model
@@ -54,6 +66,7 @@ class Sequential:
         self.layers.append(layer)
 
     def summary(self) -> None:
+
         """
         This method prints the model summary which contains
         the name of every layer and it's shape
