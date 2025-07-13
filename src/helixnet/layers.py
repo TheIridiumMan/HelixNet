@@ -21,9 +21,6 @@ names: Dict[str, int] = {}
 
 class Layer(ABC):
     """
-    :param str type_: The type of layer (e.g. Dense, Convolution).
-        This type will be used to generate the name of layer (e.g. Dense 1, Dense2)
-
     :param List[mg.Tensor] trainable_params: A list that consists of the parameters that
         will be trained by the optimiser. Pass an empty list to indicate that it has no
         trainable parameters
@@ -136,7 +133,7 @@ class Layer(ABC):
         arg_names = [p.name for p in init_signature.parameters.values() if p.name != 'self']
 
         # Create a dictionary of these arguments and their current values
-        config = {}
+        config = {"class_name": self.type}
         for name in arg_names:
             if hasattr(self, name):
                 value = getattr(self, name)
@@ -175,6 +172,8 @@ class Dense(Layer):
     # pylint: disable-next=R0913
     def __init__(self, inputs: int, params: int, activation,
                  use_bias: bool = True, dtype=mg.float32) -> None:
+        self.inputs = inputs
+        self.params = params
         he_stddev = np.sqrt(2. / np.array(inputs).sum())
         self.use_bias = use_bias
         self.activation = activation
@@ -200,8 +199,6 @@ class Dense(Layer):
         if self.use_bias:
             output += self.bias
         return self.activation(output)
-
-
 
     def output_shape(self, prev_shape: Optional[Tuple[int]] = None) -> Tuple[int]:
         return self.out_sh
@@ -264,7 +261,6 @@ class _MaxPoolND(Operation):
         # (G0, ..., (N0, ...)) -> ((N0, ...), G0, ...)
         out = maxed.transpose(axes[-num_no_pool:] + axes[:-num_no_pool])
         return out if out.flags["C_CONTIGUOUS"] else np.ascontiguousarray(out)
-
 
     def backward_var(self, grad, index, **kwargs): # pylint: disable= R0914
         """Parameters
@@ -381,7 +377,6 @@ class Conv2D(Layer):
         self.stride = stride
         self.padding = padding
 
-
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
         Performs a forward pass.
@@ -419,7 +414,6 @@ class Flatten(Layer):
         # The rest of the dimensions are flattened.
 
         return X.reshape(X.data.shape[0], -1)
-
 
     def output_shape(self, prev_shape: Tuple[int] = ()) -> Tuple[int]:
         return (np.array(prev_shape)[0:].prod(),)
@@ -577,7 +571,8 @@ class LSTMLayer(Layer):
             reshaped_outputs = [out.reshape(
                 batch_size, 1, self.hidden_size) for out in outputs]
             return mg.concatenate(reshaped_outputs, axis=1)
-
+        else:
+            return outputs[-1]
 
 
 class Embedding(Layer):
@@ -703,6 +698,16 @@ class BatchNorm(Layer):
 
 
 class DenseTranspose(Layer):
+    """
+    This layer can be used to tie the weights only of a dense layer useful in autoencoders
+
+    This layer doesn't tie the bias and can create it's own or not
+
+    :param Dense layer: The layer that its weights will be tied.
+    :param activation: The activation function that will be used by the layer. But if it's ``none`` it
+        will use the tied layer's activation function.
+    :param bool use_bias: If you want the layer to created it's own bias.
+    """
     def __init__(self, layer: Dense, activation=None, use_bias=None):
         self.weight = layer.weights.T
         if use_bias or (use_bias is None and layer.use_bias):
@@ -746,14 +751,13 @@ class ConvTranspose2D(Layer):
         else:
             self.kernel_size = kernel_size
 
-        # --- THE FIX IS HERE ---
         # The weight shape for the underlying conv_nd MUST be (C_out, C_in, K, K)
         # We are essentially "tricking" a regular convolution into being a transpose one.
         weight_shape = (input_channels, output_channels, *self.kernel_size)
         self.weights = mg.tensor(
             np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * self.kernel_size[0] * self.kernel_size[1]))
         )
-        # --- END FIX ---
+
 
         self.stride = stride if isinstance(stride, int) else stride[0]
         self.activation = activation if activation is not None else (lambda x: x)
@@ -796,7 +800,9 @@ class ConvTranspose2D(Layer):
 
 
 class Reshape(Layer):
-    """Reshapes the input tensor to the specified shape."""
+    """Reshapes the input tensor to the specified shape.
+
+    :param tuple[int] target_shape: The shape you want the data to be converted to."""
 
     def __init__(self, target_shape):
         # target_shape does not include the batch dimension (N)

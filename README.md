@@ -8,11 +8,11 @@ HelixNet is designed to be a transparent and easy-to-understand tool for learnin
 
 ## Key Features
 
-*   **Lightweight & Simple:** No complex compilation or heavy dependencies. Just plug and play.
-*   **Extensible by Design:** A clean, object-oriented structure (`Layer`, `Optimiser`) makes it easy to create your own custom layers and optimizers.
-*   **Modern Architecture:** Includes common layers like `Dense`, `Conv2D`, `MaxPooling2D`, `LSTM`, and `Embedding`.
-*   **Powerful Optimizers:** Comes with robust implementations of `SGD` (with momentum), `RMSProp` and`Adam`.
-*   **Full Documentation:** Comprehensive documentation available [here](https://helixnet.readthedocs.io/en/latest/).
+* **Lightweight & Simple:** No complex compilation or heavy dependencies. Just plug and play.
+* **Extensible by Design:** A clean, object-oriented structure (`Layer`, `Optimiser`) makes it easy to create your own custom layers and optimizers.
+* **Modern Architecture:** Includes common layers like `Dense`, `Conv2D`, `MaxPooling2D`, `LSTM`, and `Embedding`.
+* **Powerful Optimizers:** Comes with robust implementations of `SGD` (with momentum), `RMSProp` and`Adam`.
+* **Full Documentation:** Comprehensive documentation available [here](https://helixnet.readthedocs.io/en/latest/).
 
 ## Installation
 
@@ -64,7 +64,6 @@ for epoch in range(10001):
     if epoch % 100 == 0:
         accuracy = np.mean(np.argmax(logits.data, axis=1) == y.data)
         print(f'Epoch: {epoch}, Loss: {loss.data:.4f}, Accuracy: {accuracy:.4f}')
-
 ```
 
 ## Documentation

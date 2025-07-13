@@ -27,5 +27,6 @@ Just plug and play.
    layers
    models
    preprocessing
+   io
    DIY
    changelog

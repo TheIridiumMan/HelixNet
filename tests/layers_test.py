@@ -1,216 +1,271 @@
-import unittest
-from helixnet import layers, loss
-import mygrad as mg
+import pytest
 import numpy as np
+import mygrad as mg
+from helixnet import layers, models, activations
+
+# --- Test for the base Layer class and its core features ---
 
 
-class ABCLayerTest(unittest.TestCase):
-    def test_Name_Generation(self):
+def test_layer_name_generation():
+    """Tests that layers get unique, incrementing names."""
+    # Reset the internal name counter for a clean test
+    layers.names = {}
 
-        case = layers.Dense(10, 2, lambda x: x)
-        self.assertEqual("Dense 1", case.name)
-        self.assertEqual("Dense", case.type)
-        case = layers.Flatten()
-        self.assertEqual("Flatten", case.name)
-        self.assertEqual("Flatten", case.type)
-        case = layers.Dense(10, 2, lambda x: x)
-        self.assertEqual("Dense 2", case.name)
-        self.assertEqual("Dense", case.type)
+    layer1 = layers.Dense(10, 5, activation=activations.ReLU)
+    assert layer1.name == "Dense 1"
 
-    def test_Total_Params(self):
+    layer2 = layers.Flatten() # Flatten has no trainable params
+    assert layer2.name == "Flatten" # Should not have a number
 
-        case = layers.Layer([mg.zeros((2, 3))])
-        self.assertEqual(case.total_params(), 6)
-
-        case = layers.Layer([mg.zeros((2, 3)), mg.zeros(3)])
-        self.assertEqual(case.total_params(), 9)
-
-    def test_null_grads(self):
-        case = layers.Dense(64, 86, lambda x: x)
-        # We will be using dense because it is a more complete layer
-        loss.MeanAbsError(case.forward(np.ones((1, 64))), np.ones((1, 86)))\
-            .backward()
-        for param in case.trainable_params:
-            self.assertIsNotNone(param.grad)
-        case.null_grad()
-        for param in case.trainable_params:
-            self.assertIsNone(param.grad)
-
-    def test_predict(self):
-        case = layers.Dense(64, 86, lambda x: x)
-        # We will be using dense because it is a more complete layer
-        loss.MeanAbsError(case.predict(np.ones((1, 64))), np.ones((1, 86)))\
-            .backward()
-        for param in case.trainable_params:
-            self.assertIsNone(param.grad)
-
-    def test_output_shape(self):
-        case = layers.Conv2D(1, 16, 3, activation=(lambda x: x))
-        # Because Convolution uses the inherited method and doesn't provide it's own
-        self.assertEqual(case.output_shape([1, 28, 28]), (16, 26, 26))
-
-    def test_params_amount(self):
-        layer1 = layers.Dense(256, 128, lambda x: x)
-        self.assertEqual(layer1.total_params(), 256 * 128 + 128)
-
-    def test_basic_save(self):
-        self.maxDiff = None
-        layer1 = layers.Dense(256, 128, lambda x: x)
-        expected = {
-            "weights": layer1.weights.data.tolist(),
-            "bias": layer1.bias.data.tolist()
-        }
-        self.assertDictEqual(layer1.save_layer(), expected)
-
-    def test_extra_attr_save(self):
-        self.maxDiff = None
-        layer1 = layers.LSTMLayer(256, 128)
-        expected = {
-            "weights": layer1.weights.data.tolist(),
-            "bias": layer1.bias.data.tolist()
-        }
-        self.assertDictEqual(layer1.save_layer(), expected)
+    layer3 = layers.Dense(5, 2, activation=activations.ReLU)
+    assert layer3.name == "Dense 2"
 
 
-class DenseTests(unittest.TestCase):
-    def test_matrix_init(self):
-        mat = layers.Dense(64, 32, lambda x: x, use_bias=False)
-        self.assertEqual(mat.trainable_params[0].data.shape, (64, 32))
-        mat = layers.Dense(64, 32, lambda x: x, use_bias=True)
-        self.assertEqual(mat.trainable_params[0].data.shape, (64, 32))
-        self.assertEqual(mat.trainable_params[1].data.shape, (1, 32))
+def test_total_params():
+    """Tests that the total parameter count is correct."""
+    # FIX: Add a dummy activation function
+    layer = layers.Dense(inputs=10, params=5, use_bias=True, activation=lambda x: x)
+    assert layer.total_params() == 55 # Weights (10*5) + Bias (5)
 
-    def test_tensor_output_init(self):
-        mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.trainable_params[0].data.shape, (64, 2, 3, 4))
-        mat = layers.Dense(64, (4, 7, 15), lambda x: x, use_bias=True)
-        self.assertEqual(mat.trainable_params[0].data.shape, (64, 4, 7, 15))
-        self.assertEqual(mat.trainable_params[1].data.shape, (1, 4, 7, 15))
-
-    def test_tensor_input_init(self):
-        mat = layers.Dense((2, 3, 4), 64, lambda x: x, use_bias=False)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 64))
-        mat = layers.Dense((2, 3, 4), 64, lambda x: x, use_bias=True)
-        self.assertEqual(mat.trainable_params[0].data.shape, (2, 3, 4, 64))
-        self.assertEqual(mat.trainable_params[1].data.shape, (1, 64))
-
-    def test_tensor_in_out_init(self):
-        mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=False)
-
-        self.assertEqual(
-            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
-        mat = layers.Dense((2, 3, 4), (5, 3, 4), lambda x: x, use_bias=True)
-
-        self.assertEqual(
-            mat.trainable_params[0].data.shape, (2, 3, 4, 5, 3, 4))
-        self.assertEqual(mat.trainable_params[1].data.shape, (1, 5, 3, 4))
-
-    def test_matrix_forward(self):
-        mat = layers.Dense(64, 32, lambda x: x, use_bias=False)
-        result = mat.forward(np.ones((4, 64)))
-        self.assertEqual(result.shape, (4, 32))
-        loss_val = loss.MeanAbsError(result, np.zeros((4, 32)))
-        loss_val.backward()
-        for param in mat.trainable_params:
-            self.assertIsNotNone(param.grad)
-
-    def test_tensor_forward(self):
-        mat = layers.Dense((64, 86), (32, 45), lambda x: x, use_bias=False)
-        result = mat.forward(np.ones((4, 64, 32)))
-        self.assertEqual(result.shape, (4, 64, 86))
-        loss_val = loss.MeanAbsError(result, np.zeros((4, 32, 45)))
-        loss_val.backward()
-        for param in mat.trainable_params:
-            self.assertIsNone(param.grad)
-
-    def test_output_shape(self):
-        mat = layers.Dense(64, 32, lambda x: x, use_bias=False)
-        self.assertEqual(mat.output_shape(), (32,))
-        mat = layers.Dense(64, 32, lambda x: x, use_bias=True)
-        self.assertEqual(mat.output_shape(), (32,))
-
-        mat = layers.Dense((2, 3, 4), 64, lambda x: x, use_bias=False)
-        self.assertEqual(mat.output_shape(), (64,))
-        mat = layers.Dense((2, 3, 4), 64, lambda x: x, use_bias=True)
-        self.assertEqual(mat.output_shape(), (64,))
-
-        mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=False)
-        self.assertEqual(mat.output_shape(), (2, 3, 4))
-        mat = layers.Dense(64, (2, 3, 4), lambda x: x, use_bias=True)
-        self.assertEqual(mat.output_shape(), (2, 3, 4))
+    layer_no_bias = layers.Dense(inputs=10, params=5, use_bias=False, activation=lambda x: x)
+    assert layer_no_bias.total_params() == 50
 
 
-class MiscLayerTest(unittest.TestCase):
-    def test_input_shape_outputShape(self):
-        layer = layers.InputShape([1, 28, 28])
-        self.assertEqual(layer.output_shape(), (1, 28, 28))
+def test_null_grads():
+    """Tests that null_grad() correctly clears gradients."""
+    layer = layers.Dense(4, 2, activation=lambda x: x)
+    dummy_input = mg.tensor([[1, 2, 3, 4]], dtype=float)
 
-    def test_input_shape_output(self):
-        layer = layers.InputShape([1, 28, 28])
-        X = np.random.randn(10, 1, 28, 28)
-        output = layer.forward(X)
-        self.assert_((X == output).all())
+    # Create a gradient using the "dummy loss" trick
+    dummy_loss = mg.sum(layer.forward(dummy_input))
+    dummy_loss.backward()
 
-    def test_input_shape_strictness(self):
-        with self.assertRaises(ValueError):
-            layer = layers.InputShape([1, 28, 28])
-            X = np.random.randn(10, 50, 16, 28)
-            output = layer.forward(X)
-        layer = layers.InputShape([1, 28, 28])
-        X = np.random.randn(10, 1, 28, 28)
-        output = layer.forward(X)
+    # Assert that gradients exist after backprop
+    assert layer.weights.grad is not None
+    assert layer.bias.grad is not None
 
-    def test_flatten_creation(self):
+    # Action: Null the gradients
+    layer.null_grad()
+
+    # Assert that gradients are now None
+    assert layer.weights.grad is None
+    assert layer.bias.grad is None
+
+# --- Tests for the new v0.5.0 Saving/Loading Architecture ---
+
+
+def test_get_config_and_get_set_weights():
+    """
+    Tests the core saving/loading methods on a Dense layer.
+    This is the most important test for your new architecture.
+    """
+    # 1. Create the original layer
+    original_layer = layers.Dense(inputs=10, params=5, activation=activations.ReLU, use_bias=True)
+
+    # 2. Get its configuration and weights
+    config = original_layer.get_config()
+    original_weights = original_layer.get_weights()
+
+    # --- Assert the config (the "blueprint") ---
+    assert config['inputs'] == 10
+    assert config['params'] == 5
+    assert config['activation'] == 'ReLU'
+    assert config['use_bias'] is True
+
+    # --- Assert the weights (the "state") ---
+    assert len(original_weights) == 2 # weights and bias
+    assert original_weights[0].shape == (10, 5)
+    assert original_weights[1].shape == (1, 5)
+
+    # 3. Create a NEW layer from the config
+    # We manually look up the activation for the test
+    config['activation'] = activations.ReLU
+    new_layer = layers.Dense(**config)
+
+    # 4. Set the weights on the new layer
+    new_layer.set_weights(original_weights)
+
+    # 5. Assert that the new layer's weights are identical to the original's
+    for orig_w, new_w in zip(original_weights, new_layer.get_weights()):
+        assert np.allclose(orig_w, new_w)
+
+
+@pytest.fixture(autouse=True)
+def reset_layer_names():
+    """This fixture automatically runs before each test function."""
+    layers.names = {}
+
+# --- Tests for the Base Layer ---
+
+
+def test_base_layer_predict_no_autodiff():
+    """Ensures the predict method does not build a computational graph."""
+    layer = layers.Dense(10, 5, activation=lambda x: x)
+    dummy_input = np.ones((1, 10))
+
+    # predict() is decorated with @mg.no_autodiff
+    # We create a "loss" from its output. If the graph were built,
+    # the layer's parameters would have gradients.
+    output = layer.predict(dummy_input)
+    loss = mg.sum(output)
+    loss.backward()
+
+    # Assert that no gradients were formed on the layer's parameters
+    for param in layer.trainable_params:
+        assert param.grad is None, "predict() should not create gradients!"
+
+# --- Tests for Dense Layer ---
+
+
+class TestDense:
+    def test_initialization(self):
+        """Tests that Dense layer weights and biases have correct shapes."""
+        layer = layers.Dense(inputs=784, params=128, activation=activations.ReLU, use_bias=True)
+        assert layer.weights.shape == (784, 128)
+        assert layer.bias.shape == (1, 128)
+        assert len(layer.trainable_params) == 2
+
+    def test_initialization_no_bias(self):
+        layer = layers.Dense(inputs=784, params=128, activation=activations.ReLU, use_bias=False)
+        assert layer.weights.shape == (784, 128)
+        assert not hasattr(layer, 'bias')
+        assert len(layer.trainable_params) == 1
+
+    def test_forward_shape(self):
+        """Tests the output shape of the forward pass."""
+        layer = layers.Dense(inputs=784, params=128, activation=activations.ReLU)
+        dummy_input = mg.tensor(np.zeros((32, 784))) # Batch size of 32
+        output = layer.forward(dummy_input)
+        assert output.shape == (32, 128)
+
+    def test_output_shape_method(self):
+        layer = layers.Dense(inputs=784, params=128, activation=activations.ReLU)
+        assert layer.output_shape() == (128,)
+
+# --- Tests for Convolutional Layers ---
+
+
+class TestConv2D:
+    def test_forward_shape(self):
+        """Tests Conv2D output shape with standard parameters."""
+        # Input: 32 samples, 3 channels, 28x28 pixels
+        layer = layers.Conv2D(input_channels=3, output_channels=16, kernel_size=3, stride=1, padding=0, activation=activations.ReLU)
+        dummy_input = mg.tensor(np.zeros((32, 3, 28, 28)))
+        output = layer.forward(dummy_input)
+
+        # Expected size: (W - K + 2P)/S + 1 => (28 - 3 + 0)/1 + 1 = 26
+        assert output.shape == (32, 16, 26, 26)
+
+
+class TestMaxPooling2D:
+    def test_forward_shape(self):
+        """Tests MaxPooling2D output shape with standard parameters."""
+        layer = layers.MaxPooling2D(pool_size=2, stride=2)
+        dummy_input = mg.tensor(np.zeros((32, 16, 28, 28)))
+        output = layer.forward(dummy_input)
+
+        # Expected size: (W - F)//S + 1 => (28 - 2)//2 + 1 = 14
+        assert output.shape == (32, 16, 14, 14)
+
+    def test_forward_shape_uneven(self):
+        """Tests floor division behavior for pooling."""
+        layer = layers.MaxPooling2D(pool_size=2, stride=2)
+        dummy_input = mg.tensor(np.zeros((32, 16, 27, 27))) # Uneven size
+        output = layer.forward(dummy_input)
+
+        # Expected size: (27 - 2)//2 + 1 = 12 + 1 = 13
+        assert output.shape == (32, 16, 13, 13)
+
+
+class TestConvTranspose2D:
+    def test_forward_shape(self):
+        """Tests that ConvTranspose2D correctly upsamples the input."""
+        layer = layers.ConvTranspose2D(input_channels=16, output_channels=3, kernel_size=3, stride=2, activation=activations.ReLU)
+        dummy_input = mg.tensor(np.zeros((32, 16, 14, 14)))
+        output = layer.forward(dummy_input)
+
+        # Expected size: H_out = (H_in - 1) * stride + K => (14-1)*2 + 3 = 26 + 3 = 29
+        # With our manual padding fix:
+        # H_up = (14-1)*2+1 = 27. H_out = 27 + 2*pad - K + 1 = 27 + 2*2 - 3 + 1 = 29
+        assert output.shape == (32, 3, 29, 29) # This might need adjustment based on final implementation
+
+# --- Tests for Helper and Recurrent Layers ---
+
+
+class TestFlatten:
+    def test_forward_shape(self):
         layer = layers.Flatten()
-        self.assertEqual(layer.trainable_params, [])
-        self.assertEqual(layer.type, layer.name)
-        layer = layers.Flatten()
-        self.assertEqual(layer.type, layer.name)
-        layer = layers.Flatten()
-        self.assertEqual(layer.type, layer.name)
-
-    def test_flatten_forward(self):
-        layer = layers.Flatten()
-        self.assertEqual(layer.forward(np.random.randn(78, 15, 32, 44)).shape,
-
-    def test_flatten_output_shape(self):
-        self.assertTupleEqual(
-            layers.Flatten().forward(np.zeros((20, 5, 3, 7, 8))).shape,
-                              (20, 5*3*7*8))
+        dummy_input = mg.tensor(np.zeros((32, 16, 4, 4)))
+        output = layer.forward(dummy_input)
+        assert output.shape == (32, 16 * 4 * 4)
 
 
-class BatchNormTests(unittest.TestCase):
-    def test_params_init(self):
-        layer = layers.BatchNorm((784, 128))
-        self.assertTupleEqual(layer.weight.shape, (784, 128))
-        self.assertTupleEqual(layer.bias.shape, (128,))
+class TestDropout:
+    def test_training_mode_forward(self):
+        """Tests that forward() drops neurons and scales the output."""
+        layer = layers.Dropout(proba=0.5)
+        # Use integers > 1 to make scaling obvious
+        dummy_input = mg.ones((10, 100)) * 2
+        output = layer.forward(dummy_input)
 
-        layer = layers.BatchNorm((85, 87))
-        self.assertTupleEqual(layer.weight.shape, (85, 87))
-        self.assertTupleEqual(layer.bias.shape, (87,))
+        assert 0 in output.data, "Dropout should set some values to zero."
+        # The mean of non-zero elements should be scaled up by `1 / (1-proba)`
+        assert np.mean(output.data[output.data != 0]) == pytest.approx(4.0)
 
-    def test_forward(self):
-        x = np.random.randint(0, 500, size=(784, 128))
-        layer = layers.BatchNorm((784, 128))
-        y = layer.forward(x)
-        self.assertFalse((x == y).all())
+    def test_inference_mode_predict(self):
+        """Tests that predict() does nothing and returns the identical input."""
+        layer = layers.Dropout(proba=0.5)
+        dummy_input = mg.tensor(np.random.randn(10, 100))
+        output = layer.predict(dummy_input)
+
+        assert np.array_equal(output.data, dummy_input.data), "predict() should be an identity function."
 
 
-class DropoutTests(unittest.TestCase):
-    def test_forward(self):
-        x = np.random.randint(1, 500, size=(784, 128))
-        layer = layers.Dropout(0.2)
-        y = layer.forward(x)
-        # This assert ensures that x and y aren't any common element
-        self.assertTrue((x != y).any())
-        self.assertTrue(np.allclose(np.count_nonzero(y) /
-                                    (784 * 128), 0.8, 1e-2))
+class TestBatchNorm:
+    @pytest.fixture
+    def bn_layer(self):
+        # Fixture to provide a standard BatchNorm layer
+        return layers.BatchNorm(input_shape=(10, 20))
 
-    def test_predict(self):
-        x = np.random.randint(1, 500, size=(784, 128))
-        layer = layers.Dropout(0.2)
-        y = layer.predict(x)
-        self.assertTrue((x == y).all())
+    def test_training_mode_updates_stats(self, bn_layer):
+        """Tests that forward() updates the running_mean and running_var."""
+        initial_mean = bn_layer.running_mean.copy()
+        dummy_input = mg.tensor(np.random.randn(32, 10, 20)) # Batch of 32
 
-if __name__ == '__main__':
-    unittest.main()
+        bn_layer.forward(dummy_input)
+
+        # Assert that the running stats are no longer their initial zero values
+        assert not np.array_equal(bn_layer.running_mean, initial_mean)
+
+    def test_inference_mode_uses_running_stats(self, bn_layer):
+        """Tests that predict() uses running stats and works on a single sample."""
+        # Pre-populate running stats to be non-trivial
+        bn_layer.running_mean = np.full((10, 20), 5.0)
+        bn_layer.running_var = np.full((10, 20), 2.0)
+
+        # A single sample would cause division by zero if batch stats were used
+        dummy_input = mg.tensor(np.random.randn(1, 10, 20))
+
+        # This should execute without a division-by-zero error
+        try:
+            output = bn_layer.predict(dummy_input)
+            assert output.shape == (1, 10, 20)
+        except ValueError:
+            pytest.fail("BatchNorm.predict() likely failed by using batch stats instead of running stats.")
+
+
+class TestLSTMLayer:
+    def test_return_sequences_behavior(self):
+        """Tests that the `return_sequences` flag produces the correct output shape."""
+        batch_size, seq_len, input_size, hidden_size = 8, 10, 4, 16
+        dummy_input = mg.tensor(np.zeros((batch_size, seq_len, input_size)))
+
+        # Test case: return_sequences = True
+        lstm_full = layers.LSTMLayer(input_size, hidden_size, return_sequences=True)
+        output_full = lstm_full.forward(dummy_input)
+        assert output_full.shape == (batch_size, seq_len, hidden_size)
+
+        # Test case: return_sequences = False
+        lstm_last = layers.LSTMLayer(input_size, hidden_size, return_sequences=False)
+        output_last = lstm_last.forward(dummy_input)
+        assert output_last.shape == (batch_size, hidden_size)

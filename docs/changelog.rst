@@ -1,6 +1,22 @@
 Changelog
 =========
 
+New in 0.5.0
+------------
+#. Now :class:`helixnet.layers.Layer` can determine the name of layer automatically
+#. Added the ability to save layers and get their configuration from ``__init__`` method
+#. Added the ability to save & load :class:`helixnet.models.Sequential`
+#. Added :class:`helixnet.layers.DenseTranspose`
+#. Added :class:`helixnet.layers.ConvTranspose2D`
+#. Added :class:`helixnet.layers.Reshape`
+#. Migrated the tests to pytest
+#. Added new module :mod:`helixnet.io` for saving and loading :class:`helixnet.models.Sequential`
+
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+Now :class:`helixnet.layers.Layer` doesn't accept the **type** of the layer
+
 New in 0.4.0
 ------------
 #. Added :class:`helixnet.layers.BatchNorm` for batch normalization

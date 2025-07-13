@@ -11,7 +11,12 @@ for key, func in activations.__dict__.items():
 
 
 def save_model(model: models.Sequential, filepath: str):
-    """Saves a model by cleanly separating architecture and weights."""
+    """
+    Saves a model by cleanly separating architecture and weights.
+
+    :param models.Sequential model: The model that will be saved
+    :param str filepath: The filename of the model that should be saved in
+    """
     model_data = {
         # The architecture is just a list of configs
         "architecture": [layer.get_config() for layer in model.layers],
@@ -23,7 +28,11 @@ def save_model(model: models.Sequential, filepath: str):
 
 
 def load_model(filepath: str) -> models.Sequential:
-    """Loads a model from its architecture and weights."""
+    """
+    Loads a model from its architecture and weights.
+
+    :param str filepath: The filename of the model that will be loaded from.
+    """
     with open(filepath, 'r') as f:
         model_data = json.load(f)
 

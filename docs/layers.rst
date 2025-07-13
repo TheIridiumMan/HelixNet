@@ -31,6 +31,9 @@ Here we have our building blocks **The Layers**
 .. autoclass:: helixnet.layers.Flatten
     :members:
 
+.. autoclass:: helixnet.layers.Reshape
+    :members:
+
 .. autoclass:: helixnet.layers.Embedding
     :members:
 
@@ -47,4 +50,10 @@ Here we have our building blocks **The Layers**
     :members:
 
 .. autoclass:: helixnet.layers.Dropout
+    :members:
+
+.. autoclass:: helixnet.layers.DenseTranspose
+    :members:
+
+.. autoclass:: helixnet.layers.ConvTranspose2D
     :members:
