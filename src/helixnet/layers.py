@@ -30,14 +30,12 @@ class Layer(ABC):
     use their type name without counting.
     """
 
-    def __init__(self, trainable_params: List[mg.Tensor],
-                 save_too: set = None) -> None:
+    def __init__(self, trainable_params: List[mg.Tensor],) -> None:
         self.type = self.__class__.__name__
         # self.total_params = total_params
         self._config = self._get_current_config()
         self.trainable_params: List[mg.Tensor] = trainable_params
 
-        self.save_too = {id(i) for i in save_too} if save_too else None
         if trainable_params != []:
             # In case of the layer doesn't have any trainable parameters.
             # We won't add numbers for it
@@ -149,11 +147,29 @@ class Layer(ABC):
         return self._config
 
     def get_weights(self) -> List[np.ndarray]:
+        """
+        returns a list of weights of them model.
+        """
         return [p.data for p in self.trainable_params]
 
     def set_weights(self, weights: List[np.ndarray]):
+        """
+        Sets the weights of them model.
+
+        :param List[np.ndarray] weights: This should be the return value of get_weights
+        """
         for param, weight_array in zip(self.trainable_params, weights):
             param.data = weight_array
+
+    def populate_self(self, population: dict) -> None:
+        """
+        This function used in inhereitance in order to
+        to get the arguments in and save ``self`` to enable automatic saving
+
+        :param dict population: the argument should be ``local()``
+        """
+        for key, value in population.items():
+            setattr(self, key, value)
 
 
 class Dense(Layer):
@@ -352,6 +368,7 @@ class Conv2D(Layer):
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
                  stride=1, padding=0, activation=None, use_bias: bool = True):
 
+        self.populate_self(locals())
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
 
@@ -366,6 +383,7 @@ class Conv2D(Layer):
 
         self.use_bias = use_bias
         self.activation = activation
+        self.kernel_size = kernel_size
         if self.use_bias:
             # Bias has one value per output channel
             self.bias = mg.tensor(np.zeros(output_channels))
@@ -428,6 +446,7 @@ class MaxPooling2D(Layer):
     """
 
     def __init__(self, pool_size, stride=None):
+        self.populate_self(locals())
         super().__init__([])
         if isinstance(pool_size, int):
             self.pool_size = (pool_size, pool_size)
@@ -530,7 +549,7 @@ class LSTMLayer(Layer):
         self.bias = self.cell.bias_all
         # LSTM layer doesn't need its own use_bias attribute, it's handled by the cell
         self.use_bias = True
-        super().__init__([self.weights, self.bias], {self.cell})
+        super().__init__([self.weights, self.bias])
 
     def forward(self, X: mg.Tensor) -> mg.Tensor:
         """
@@ -668,7 +687,7 @@ class BatchNorm(Layer):
 
         self.running_mean = np.zeros(input_shape)
         self.running_var = np.ones(input_shape)
-        self.training = True  # Start in training mode
+        self.populate_self(locals())
 
     def forward(self, X) -> mg.Tensor:
         # During training, use batch statistics
@@ -708,6 +727,7 @@ class DenseTranspose(Layer):
         will use the tied layer's activation function.
     :param bool use_bias: If you want the layer to created it's own bias.
     """
+
     def __init__(self, layer: Dense, activation=None, use_bias=None):
         self.weight = layer.weights.T
         if use_bias or (use_bias is None and layer.use_bias):
@@ -746,6 +766,7 @@ class ConvTranspose2D(Layer):
     def __init__(self, input_channels: int, output_channels: int, kernel_size,
                  stride=1, activation=None, use_bias: bool = True):
 
+        self.populate_self(locals())
         if isinstance(kernel_size, int):
             self.kernel_size = (kernel_size, kernel_size)
         else:
@@ -757,7 +778,6 @@ class ConvTranspose2D(Layer):
         self.weights = mg.tensor(
             np.random.randn(*weight_shape) * np.sqrt(2. / (input_channels * self.kernel_size[0] * self.kernel_size[1]))
         )
-
 
         self.stride = stride if isinstance(stride, int) else stride[0]
         self.activation = activation if activation is not None else (lambda x: x)

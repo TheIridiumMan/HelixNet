@@ -1,5 +1,9 @@
 Changelog
 =========
+New in 0.5.1
+------------
+#. Fixed a bug in loading the models
+#. Added :class:`helixnet.layer.Layer.populate_self`
 
 New in 0.5.0
 ------------

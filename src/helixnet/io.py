@@ -1,5 +1,6 @@
 import json
 import mygrad as mg
+import numpy as np
 from . import models, layers, activations
 
 LAYER_REGISTRY = {cls.__name__: cls for cls in layers.Layer.__subclasses__()}
@@ -53,7 +54,7 @@ def load_model(filepath: str) -> models.Sequential:
     model = models.Sequential(loaded_layers)
 
     # 2. Load the saved weights into the empty model
-    all_weights = [mg.tensor(w) for w in model_data['weights']]
-    model.set_weights(all_weights) # We can add a helper to the model for this
+    all_weights = [np.array(w) for w in model_data['weights']]
+    model.set_weights(all_weights)
 
     return model
