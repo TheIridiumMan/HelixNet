@@ -17,3 +17,7 @@ def MeanAbsError(y_pred, y_true):
 def Kullback_Leibler(y_pred, y_true):
     return y_pred * mg.log(y_pred / y_true) + (1 - y_pred) * \
         mg.log((1 - y_pred) / (1 - y_true))
+
+
+def softmax_crossentropy(y_pred, y_true):
+    return mg.nnet.losses.softmax_crossentropy(y_pred.astype(np.int32), y_true.astype(np.int32))

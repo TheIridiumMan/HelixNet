@@ -1,10 +1,12 @@
 
 """This module contains model creation capablities and tools"""
 from typing import List, Tuple, Dict
+from functools import partial
 
 
 import mygrad as mg
 import numpy as np
+from progress_table import ProgressTable
 
 from helixnet import layers
 
@@ -105,3 +107,69 @@ class Sequential:
             num_params = len(layer.trainable_params)
             layer_weights = [next(weight_iterator) for _ in range(num_params)]
             layer.set_weights(layer_weights)
+
+    def fit(self, X, Y, loss_func, optimizer, epochs=1, batch_size=None, preprocessing=None,
+            metric=None):
+        """
+        A high-level training loop for the model.
+    
+        :param X: Training data.
+        :param Y: Training labels.
+        :param loss_func: A callable loss function.
+        :param optimizer: An optimizer instance.
+        :param int epochs: The number of epochs to train for.
+        :param int, optional batch_size: If specified, training will be done in mini-batches.
+                                         If None, training is done on the full dataset at once.
+        :param callable, optional preprocessing: A function to apply to input data.
+        """
+        table = ProgressTable(
+            pbar_embedded=False,
+            pbar_style_embed="rich",
+            pbar_style="circle alt red blue",
+            custom_cell_format=lambda val: f"{val:.4f}" if isinstance(val, float) else str(val),
+            pbar_show_progress=True,
+            pbar_show_percents=True,
+        )
+
+        for epoch in table(epochs, description="Epoch",
+                           show_throughput=True, show_eta=True):
+            table["epoch"] = epoch
+            if batch_size is not None:
+                # --- Mini-Batch Training Path ---
+                batch_indices = np.arange(len(X))
+                np.random.shuffle(batch_indices)
+
+                for i in table(range(0, len(X), batch_size),
+                               description="Batch",
+                               show_throughput=True, show_eta=True):
+                    batch_slice = batch_indices[i: i + batch_size]
+                    x_batch = X[batch_slice]
+                    y_batch = Y[batch_slice]
+
+                    if preprocessing:
+                        x_batch = preprocessing(x_batch)
+
+                    prediction = self.forward(x_batch) # FIX: Use x_batch
+                    loss = loss_func(prediction, y_batch)
+
+                    optimizer.optimize(self, loss)
+                    if metric:
+                        met = metric(prediction, y_batch)
+                        table.update("Additional Metrics", met.item(), aggregate="mean")
+                    table.update("Training Loss", loss.item(), aggregate="mean")
+
+            else:
+                # --- Full-Batch Training Path ---
+                x_processed = X if not preprocessing else preprocessing(X)
+                prediction = self.forward(x_processed)
+                loss = loss_func(prediction, Y)
+
+                optimizer.optimize(self, loss)
+                if metric:
+                    met = metric(prediction, y_batch)
+                    table.update("Additional Metrics", met.item(), aggregate="mean")
+                table.update("Training Loss", loss.item(), aggregate="mean")
+
+            optimizer.epoch_done()
+            table.next_row()
+        table.close() # Close the table only if it was used
