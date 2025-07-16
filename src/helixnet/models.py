@@ -6,14 +6,22 @@ from functools import partial
 
 import mygrad as mg
 import numpy as np
-from progress_table import ProgressTable
+
+from typing import List, Tuple, Dict, Callable, Optional # Make sure these are present
+from rich.live import Live
+from rich.progress import (Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn,
+                           TaskProgressColumn, track)
+from rich.table import Table
+from rich.console import Group
+from rich.panel import Panel
+
 
 from helixnet import layers
 
 
 class Sequential:
     """A Simple model that propagate through the layers in a linear way
-    
+
     :param list layer: the list which contains the layers"""
 
     def __init__(self, layers_: list[layers.Layer]) -> None:
@@ -108,68 +116,120 @@ class Sequential:
             layer_weights = [next(weight_iterator) for _ in range(num_params)]
             layer.set_weights(layer_weights)
 
-    def fit(self, X, Y, loss_func, optimizer, epochs=1, batch_size=None, preprocessing=None,
-            metric=None):
+            # Add these imports at the top of your models.py file
+
+            # ... inside your Sequential class ...
+
+    def fit(self, X, Y, loss_func: Callable, optimizer, epochs: int = 1,
+            batch_size: Optional[int] = None,
+            preprocessing: Optional[Callable] = None,
+            metrics: Optional[Dict[str, Callable]] = None):
         """
-        A high-level training loop for the model.
-    
-        :param X: Training data.
-        :param Y: Training labels.
-        :param loss_func: A callable loss function.
-        :param optimizer: An optimizer instance.
-        :param int epochs: The number of epochs to train for.
-        :param int, optional batch_size: If specified, training will be done in mini-batches.
-                                         If None, training is done on the full dataset at once.
-        :param callable, optional preprocessing: A function to apply to input data.
+        A high-level training loop with a rich, interactive display.
         """
-        table = ProgressTable(
-            pbar_embedded=False,
-            pbar_style_embed="rich",
-            pbar_style="circle alt red blue",
-            custom_cell_format=lambda val: f"{val:.4f}" if isinstance(val, float) else str(val),
-            pbar_show_progress=True,
-            pbar_show_percents=True,
-        )
-
-        for epoch in table(epochs, description="Epoch",
-                           show_throughput=True, show_eta=True):
-            table["epoch"] = epoch
-            if batch_size is not None:
-                # --- Mini-Batch Training Path ---
-                batch_indices = np.arange(len(X))
-                np.random.shuffle(batch_indices)
-
-                for i in table(range(0, len(X), batch_size),
-                               description="Batch",
-                               show_throughput=True, show_eta=True):
-                    batch_slice = batch_indices[i: i + batch_size]
-                    x_batch = X[batch_slice]
-                    y_batch = Y[batch_slice]
-
-                    if preprocessing:
-                        x_batch = preprocessing(x_batch)
-
-                    prediction = self.forward(x_batch) # FIX: Use x_batch
-                    loss = loss_func(prediction, y_batch)
-
-                    optimizer.optimize(self, loss)
-                    if metric:
-                        met = metric(prediction, y_batch)
-                        table.update("Additional Metrics", met.item(), aggregate="mean")
-                    table.update("Training Loss", loss.item(), aggregate="mean")
-
-            else:
-                # --- Full-Batch Training Path ---
+        # --- Full-Batch Training (Simpler UI) ---
+        if batch_size is None:
+            # ... (This part was correct and can remain the same) ...
+            print("[bold cyan]Starting full-batch training...[/bold cyan]")
+            for epoch in track(range(epochs), description="Training epochs"):
                 x_processed = X if not preprocessing else preprocessing(X)
                 prediction = self.forward(x_processed)
                 loss = loss_func(prediction, Y)
-
                 optimizer.optimize(self, loss)
-                if metric:
-                    met = metric(prediction, y_batch)
-                    table.update("Additional Metrics", met.item(), aggregate="mean")
-                table.update("Training Loss", loss.item(), aggregate="mean")
+                if epoch % 100 == 0 or epoch == epochs - 1:
+                    log_line = f"Epoch: {epoch}, Loss: {loss.item():.4f}"
+                    if metrics:
+                        for name, func in metrics.items():
+                            metric_val = func(prediction.data, Y)
+                            log_line += f", {name.title()}: {metric_val:.4f}"
+                    print(log_line)
+                optimizer.epoch_done()
+            print("[bold green]Full-batch training complete.[/bold green]")
+            return
 
-            optimizer.epoch_done()
-            table.next_row()
-        table.close() # Close the table only if it was used
+        overall_progress = Progress(
+            TextColumn("[bold red]Overall Progress", justify="right"),
+            BarColumn(bar_width=None),
+            TaskProgressColumn(),
+            "•",
+            TimeRemainingColumn(), # Stable ETA for the entire training run
+        )
+
+        batch_progress = Progress(
+            # THE FIX: We use a simple, generic description column.
+            # We will update its content dynamically every batch.
+            TextColumn("{task.description}"),
+            BarColumn(bar_width=None),
+            TaskProgressColumn(),
+            "•",
+            TimeRemainingColumn(), # ETA for the current epoch
+        )
+
+            # Define the results table
+        results_table = Table(title="Training Log", show_header=True, header_style="bold magenta")
+        results_table.add_column("Epoch", justify="right", style="cyan")
+        results_table.add_column("Avg Train Loss", justify="center", style="green")
+        if metrics:
+            for name in metrics.keys():
+                results_table.add_column(f"Avg Train {name.replace('_', ' ').title()}", justify="center")
+
+        # Group UI elements inside a Panel
+        render_group = Panel(
+           Group(results_table, batch_progress, overall_progress),
+           title="[bold yellow]HelixNet Training[/bold yellow]",
+           border_style="blue"
+            )
+
+        with Live(render_group, refresh_per_second=10, vertical_overflow="visible") as live:
+            num_batches_per_epoch = (len(X) + batch_size - 1) // batch_size
+            total_batches = num_batches_per_epoch * epochs
+            overall_task = overall_progress.add_task("Batches", total=total_batches)
+
+            for epoch in range(epochs):
+                epoch_loss_total = 0.0
+                epoch_metrics_totals = {name: 0.0 for name in metrics.keys()} if metrics else {}
+
+                # Add the batch task with a simple initial description
+                batch_task = batch_progress.add_task(f"Epoch {epoch+1}", total=num_batches_per_epoch)
+
+                batch_indices = np.arange(len(X))
+                np.random.shuffle(batch_indices)
+
+                for i in range(num_batches_per_epoch):
+                    start, end = i * batch_size, (i + 1) * batch_size
+                    # ... (batch creation logic) ...
+                    x_batch, y_batch = X[start:end], Y[start:end]
+
+                    # ... (forward pass, optimizer.optimize, etc.) ...
+                    prediction = self.forward(x_batch)
+                    loss = loss_func(prediction, y_batch)
+                    optimizer.optimize(self, loss)
+
+                    current_loss = loss.item()
+                    epoch_loss_total += current_loss
+                    if metrics:
+                        for name, func in metrics.items():
+                            epoch_metrics_totals[name] += func(prediction.data, y_batch)
+
+                    # THE FIX: Construct the full description string and update it directly.
+                    # This is the most reliable method.
+                    live_description = (f"[bold cyan]Epoch {epoch+1}[/bold cyan] "
+                                        f"[green]Loss: {current_loss:.4f}[/green]")
+
+                    batch_progress.update(batch_task, advance=1, description=live_description)
+                    overall_progress.update(overall_task, advance=1)
+
+                # --- After an epoch is complete ---
+                avg_loss = epoch_loss_total / num_batches_per_epoch
+                row_data = [f"{epoch + 1}", f"{avg_loss:.4f}"]
+                if metrics:
+                    for name in metrics.keys():
+                        avg_metric = epoch_metrics_totals[name] / num_batches_per_epoch
+                        row_data.append(f"{avg_metric:.4f}")
+
+                results_table.add_row(*row_data)
+
+                # Remove the completed batch task
+                batch_progress.remove_task(batch_task)
+
+                optimizer.epoch_done()
