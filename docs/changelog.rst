@@ -1,5 +1,18 @@
 Changelog
 =========
+New in 0.6.0
+------------
+#. Automatic training loop with live views that shows the loss
+    in realtime and also supports validation metrics
+#. New :mod:`helixnet.metrics`
+#. New losses :func:`helixnet.metrics.BinaryCrossEntropy` 
+    :func:`helixnet.metrics.CosineSimilarityLoss`
+    :func:`helixnet.metrics.HingeLoss`
+    :func:`helixnet.metrics.FocalLoss`
+    :func:`helixnet.metrics.LogCoshLoss`
+    :func:`helixnet.metrics.HuberLoss`
+#. :class:`helixnet.models.Sequential.summary` uses rich tables
+
 New in 0.5.1
 ------------
 #. Fixed a bug in loading the models

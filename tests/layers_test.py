@@ -51,6 +51,19 @@ def test_null_grads():
     assert layer.weights.grad is None
     assert layer.bias.grad is None
 
+
+def test_layer_convert_array():
+    case = layers.Layer([np.array([1.0, 2.0, 3.0]),
+                         np.array([1.0, 2.0, 3.0])])
+    for param in case.trainable_params:
+        assert isinstance(param, mg.Tensor)
+
+
+def test_layer_raise():
+    with pytest.raises(TypeError) as exp:
+        case = layers.Layer("My String", "Another String")
+
+
 # --- Tests for the new v0.5.0 Saving/Loading Architecture ---
 
 
@@ -64,6 +77,7 @@ def test_get_config_and_get_set_weights():
 
     # 2. Get its configuration and weights
     config = original_layer.get_config()
+    config.pop("class_name")
     original_weights = original_layer.get_weights()
 
     # --- Assert the config (the "blueprint") ---

@@ -5,3 +5,4 @@ from . import loss
 from . import models
 from . import optimizers
 from . import io
+from . import metrics
