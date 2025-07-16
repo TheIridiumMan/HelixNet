@@ -53,7 +53,7 @@ for i in range(epochs):
         y_true = batch["label"].values
 
         # Forward pass produces logits (raw scores)
-        logits = (model.forward(x))
+        logits = model.forward(x)
 
         # The loss function takes logits and integer labels
         loss_value = mg.nnet.losses.softmax_crossentropy(logits, y_true)
