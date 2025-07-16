@@ -25,6 +25,8 @@ Just plug and play.
    installation
    optimizers
    layers
+   loss
+   metrics
    models
    preprocessing
    io

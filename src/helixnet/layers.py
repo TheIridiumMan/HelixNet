@@ -50,6 +50,7 @@ class Layer(ABC):
             for i, parameter in enumerate(trainable_params):
                 if isinstance(parameter, np.ndarray):
                     parameter = mg.tensor(parameter, constant=False)
+                    self.trainable_params[i] = parameter
                 elif isinstance(parameter, mg.Tensor):
                     continue
                 else:
