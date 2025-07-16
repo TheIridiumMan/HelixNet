@@ -41,16 +41,26 @@ def top_k_accuracy(y_pred_logits, y_true, k=5):
 
 
 def rmse(y_pred, y_true):
+    """
+    It's just the square root of MSE. Its advantage is that the units are the same as the target
+    """
     return np.sqrt(np.mean((y_pred - y_true)**2))
 
 
 def r_squared(y_pred, y_true):
+    """
+    A standard statistical measure that represents
+    the proportion of the variance in the dependent variable that is predictable from
+    the independent variables. An R² of 1 indicates that the model explains
+    all the variability of the response data around its mean.
+    """
     ss_total = np.sum((y_true - np.mean(y_true))**2)
     ss_residual = np.sum((y_true - y_pred)**2)
     return 1 - (ss_residual / (ss_total + 1e-7))
 
 
 def accuracy(y_pred, y_true):
+    """Calculates the accuracy of the models"""
     # Assumes y_pred are logits or probabilities
     predictions = np.argmax(y_pred, axis=1)
     return np.mean(predictions == y_true)
