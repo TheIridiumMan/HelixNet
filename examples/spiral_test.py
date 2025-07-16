@@ -19,7 +19,7 @@ model = models.Sequential([
 
 # Use Adam, which should now work correctly because epoch_done() is called
 optim = optimizers.RMSProp(0.01, 5e-5)
-
+model.summary()
 # Call the clean, high-level fit method
 # We pass the real loss function and the raw integer labels 'y'
 model.fit(X, y, loss_func=softmax_crossentropy, optimizer=optim, epochs=10, batch_size=32,

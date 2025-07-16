@@ -14,6 +14,7 @@ from rich.progress import (Progress, SpinnerColumn, BarColumn, TextColumn, TimeR
 from rich.table import Table
 from rich.console import Group
 from rich.panel import Panel
+from rich import print
 
 
 from helixnet import layers
@@ -76,18 +77,21 @@ class Sequential:
         This method prints the model summary which contains
         the name of every layer and it's shape
         """
-        print("Layer", 11 * " ", "Output Shape", 10 * " ", "Total Parameters")
-        print("=" * 60)
+        table = Table(title="The Model Summary")
+        table.add_column(" ", ratio=1)
+        table.add_column("Layer", ratio=5)
+        table.add_column("Output Shape", ratio=5)
+        table.add_column("No. Params", ratio=3)
         shape = []
-        tot_params = 0
-        for layer in self.layers:
+        total_params = 0
+        for i, layer in enumerate(self.layers):
             shape = layer.output_shape(shape)
             params = layer.total_params()
-            tot_params += params
-            print(layer.name.ljust(17), ("(N, " + str(shape)[1:]).ljust(23),
-                  params)
-        print("=" * 60)
-        print(f"Total parameters {tot_params}")
+            total_params += params
+            table.add_row(str(i), f"{layer.name} ({layer.type})", str(shape), str(params))
+        table.add_section()
+        print(table)
+        print("Total Parameters", str(total_params))
 
     def predict(self, x: mg.Tensor) -> mg.Tensor:
         """This method let the model predict without building computational graph
