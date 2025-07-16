@@ -120,9 +120,6 @@ class Sequential:
             layer_weights = [next(weight_iterator) for _ in range(num_params)]
             layer.set_weights(layer_weights)
 
-            # Add these imports at the top of your models.py file
-
-            # ... inside your Sequential class ...
 
     def fit(self, X, Y, loss_func: Callable, optimizer, epochs: int = 1,
             batch_size: Optional[int] = None,
@@ -133,7 +130,6 @@ class Sequential:
         """
         # --- Full-Batch Training (Simpler UI) ---
         if batch_size is None:
-            # ... (This part was correct and can remain the same) ...
             print("[bold cyan]Starting full-batch training...[/bold cyan]")
             for epoch in track(range(epochs), description="Training epochs"):
                 x_processed = X if not preprocessing else preprocessing(X)
@@ -160,7 +156,6 @@ class Sequential:
         )
 
         batch_progress = Progress(
-            # THE FIX: We use a simple, generic description column.
             # We will update its content dynamically every batch.
             TextColumn("{task.description}"),
             BarColumn(bar_width=None),
@@ -215,7 +210,6 @@ class Sequential:
                         for name, func in metrics.items():
                             epoch_metrics_totals[name] += func(prediction.data, y_batch)
 
-                    # THE FIX: Construct the full description string and update it directly.
                     # This is the most reliable method.
                     live_description = (f"[bold cyan]Epoch {epoch+1}[/bold cyan] "
                                         f"[green]Loss: {current_loss:.4f}[/green]")
