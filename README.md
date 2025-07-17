@@ -16,11 +16,9 @@ HelixNet is designed to be a transparent and easy-to-understand tool for learnin
 
 ## Installation
 
-Currently, `HelixNet` can be installed directly from the source repository. Ensure you have `setuptools` and `wheel` installed.
-
 ```bash
 # For the latest stable version
-pip install .
+pip install HelixNet
 
 # For development (editable) mode
 pip install -e .
