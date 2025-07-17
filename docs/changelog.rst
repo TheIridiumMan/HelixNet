@@ -1,5 +1,10 @@
 Changelog
 =========
+New in 0.6.1
+------------
+#. Switch to hatch as a build system
+#. The ``__version__`` is in ``__init__`` and shared across build system and documentation
+
 New in 0.6.0
 ------------
 #. Automatic training loop with live views that shows the loss
