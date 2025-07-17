@@ -6,3 +6,5 @@ from . import models
 from . import optimizers
 from . import io
 from . import metrics
+
+__version__ = "0.6.1"

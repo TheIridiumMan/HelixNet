@@ -9,19 +9,20 @@ import sys
 from pathlib import Path
 import sphinx_book_theme
 
+sys.path.insert(0, str(Path('..', 'src').resolve()))
+import helixnet
+
 html_theme = "sphinx_book_theme"
 html_theme_path = [sphinx_book_theme.get_html_theme_path()]
 
 project = 'HelixNet'
 copyright = '2025, Amr Fahmy'
 author = 'Amr Fahmy'
-release = '0.6.0'
+release = helixnet.__version__
 
 extensions = [
     "sphinx.ext.autodoc"
 ]
-
-sys.path.insert(0, str(Path('..', 'src').resolve()))
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']

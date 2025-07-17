@@ -1,23 +1,35 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "HelixNet"
-version = "0.6.0"
-authors = [
-    { name = "Amr Fahmy" },
-]
-license = "MIT"
-requires-python = ">=3.9"
-dependencies = [
-    "numpy",
-    "mygrad",
-    "rich"
-]
 description = "A powerful simple Neural Network building blocks based on MyGrad"
+authors = [{ name = "Amr Fahmy" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy", "mygrad", "rich"]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
 
 [project.optional-dependencies]
-docs = [
-    "sphinx",
-    "sphinx-book-theme",
+docs = ["sphinx", "sphinx-book-theme"]
+
+[tool]
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/helixnet",
+  "pyproject.toml"
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/helixnet"]
+
+[tool.hatch.version]
+path = "src/helixnet/__init__.py"
