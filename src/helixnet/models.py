@@ -198,6 +198,8 @@ class Sequential:
                     start, end = i * batch_size, (i + 1) * batch_size
                     # ... (batch creation logic) ...
                     x_batch, y_batch = X[start:end], Y[start:end]
+                    if preprocessing is not None:
+                        x_batch = preprocessing(x_batch)
 
                     # ... (forward pass, optimizer.optimize, etc.) ...
                     prediction = self.forward(x_batch)
@@ -222,7 +224,7 @@ class Sequential:
                 row_data = [f"{epoch + 1}", f"{avg_loss:.4f}"]
                 if metrics:
                     for name in metrics.keys():
-                        avg_metric = epoch_metrics_totals[name] / num_batches_per_epoch
+                        avg_metric = (epoch_metrics_totals[name] / num_batches_per_epoch).item()
                         row_data.append(f"{avg_metric:.4f}")
 
                 results_table.add_row(*row_data)

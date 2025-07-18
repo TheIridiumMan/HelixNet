@@ -6,5 +6,6 @@ from . import models
 from . import optimizers
 from . import io
 from . import metrics
+from . import preprocessing
 
 __version__ = "0.6.1"
