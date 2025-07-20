@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import mygrad as mg
 from helixnet import optimizers
+from unittest.mock import Mock
 
 # --- A pytest fixture to provide a clean parameter for each test ---
 

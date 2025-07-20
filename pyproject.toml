@@ -21,6 +21,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 docs = ["sphinx", "sphinx-book-theme"]
+tests = ["scikit-learn"]
+images = ["pillow"]
 
 [tool]
 [tool.hatch.build.targets.sdist]
