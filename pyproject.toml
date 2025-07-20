@@ -21,7 +21,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 docs = ["sphinx", "sphinx-book-theme"]
-tests = ["scikit-learn"]
+tests = ["scikit-learn", "pytest"]
 images = ["pillow"]
 
 [tool]
