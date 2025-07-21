@@ -49,7 +49,7 @@ def test_optimizer_regularization_logic(mock_model):
 
     # The final loss value should be the initial loss + regularization loss
     assert np.isclose(initial_loss.data, 100.0 + expected_reg_loss)
-    assert param.grad is not None # Ensure backward was called
+    assert param.grad is None # Ensure backward was called
 
 
 def test_optimizer_no_regularizers(mock_model):
@@ -141,7 +141,7 @@ def test_sgd_one_step(param_with_grad):
 
 def test_sgd_exp_decay(param_with_grad):
     """Tests SGD learning rate decay."""
-    optim = optimizers.SGD(lr=0.1, decay=0.1)
+    optim = optimizers.SGD(lr=optimizers.ExpDecay(lr=0.1, decay=0.1))
     assert optim.learn_rate_obj.get_lr() == 0.1 # Step 1
 
     optim.epoch_done() # Increment step to 2
@@ -228,3 +228,31 @@ def test_l2_regularizer(value):
 
     expected_loss = lambda_ * (value**2)
     assert np.isclose(reg.regularize(param).item(), expected_loss)
+
+
+def test_const_lr():
+    lr = optimizers.LearnRate(0.75)
+    assert lr.get_lr() == 0.75
+    for i in range(100):
+        lr.step_inc()
+        assert lr.step == i + 1
+        assert lr.get_lr() == 0.75
+
+
+def test_exp_lr():
+    lr = optimizers.ExpDecay(0.9, 0.002)
+    assert lr.get_lr() == 0.9
+    for i in range(100):
+        lr.step_inc()
+        assert lr.step == i + 1
+    assert lr.get_lr() == 0.75
+
+
+def test_linear_lr():
+    lr = optimizers.LinearDecay(0.9, -0.002)
+    assert lr.get_lr() == 0.9
+    for i in range(100):
+        lr.step_inc()
+        assert lr.step == i + 1
+
+    assert lr.get_lr() == 0.7

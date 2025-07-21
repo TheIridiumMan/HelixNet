@@ -21,6 +21,11 @@ class Regularizer(ABC):
 
 
 class LearnRate:
+    """
+    A constant learn rate
+
+    :param float lr:
+    """
     def __init__(self, lr: float):
         self.lr = lr
         self.step = 0
@@ -117,17 +122,14 @@ class SGD(Optimizer):
         is more stable than Adam numerically
     """
 
-    def __init__(self, lr, decay=None, momentum=None,
+    def __init__(self, lr, momentum=None,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
         """
-        :param float lr: The learn rate of the optimiser
-        :param float decay: The rate of learn rate decay can be ``None`` or
-            ``False`` in order to avoid decay
+        :param float|LearnRate lr: The learn rate of the optimiser
         :param float momentum: The momentum but can be ``None`` or
             ``False`` in order to avoid decay
         :param list regularizers: The list which contains the regularizers
         """
-        self.decay = decay
         self.momentum = momentum
         if self.momentum:
             self.momentums = {}
@@ -154,12 +156,10 @@ class Adam(Optimizer):
     """
     Adam a very good optimiser can converge quickly but less stable numerically
 
-    :param float lr: The learn rate of the optimiser
-    :param float decay: The rate of learn rate decay can be
-        ``None`` in order to avoid decay
+    :param float|LearnRate lr: The learn rate of the optimiser
     """
 
-    def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
+    def __init__(self, learning_rate=LearnRate(0.001), epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
         self.epilson = epsilon
@@ -222,12 +222,10 @@ class L2(Regularizer):
 class RMSProp(Optimizer):
     """Root Mean Square Propagation optimiser or for short named RMSProp"""
 
-    def __init__(self, lr=0.001, decay=None, epsilon=1e-7, rho=0.9,
+    def __init__(self, lr=LearnRate(0.001), epsilon=1e-7, rho=0.9,
                  regularizers: List[Regularizer] = None):
         """
-        :param float lr: The learning rate of optimizer
-        :param float decay: The decay rate of the learning rate
-            can be ``None`` to stop the decay
+        :param float|LearnRate lr: The learning rate of optimizer
         :param float epsilon: The epsilon of the optimizer
         :param float rho: The rho of the optimizer
         :param List[:class:`helixnet.optimizers.Regularizer`] regularizers:
@@ -235,7 +233,7 @@ class RMSProp(Optimizer):
             the parameters of the model
         """
         super().__init__(lr, regularizers)
-        self.decay = decay
+
         self.epsilon = epsilon
         self.rho = rho
         self.cache = {}
@@ -262,17 +260,15 @@ class NesterovSGD(Optimizer):
     """
     A Nesterov Stochastic Gradient Descend optimizer.
 
-    :param float lr: The learn rate of the optimiser
-    :param float decay: The rate of learn rate decay can be ``None`` or
-        ``False`` in order to avoid decay
+    :param float|LearnRate lr: The learn rate of the optimiser
     :param float momentum: The momentum value
     :param list regularizers: The list which contains the regularizers
     """
 
-    def __init__(self, lr, decay=None, momentum=0.9,
+    def __init__(self, lr, momentum=0.9,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
         self.lr = self.init_lr = lr
-        self.decay = decay
+
         self.momentum = momentum
         if self.momentum:
             self.momentums = {}
@@ -296,3 +292,38 @@ class NesterovSGD(Optimizer):
 
         parameter.data += -self.momentum * prev_momentum + (1 + self.momentum) * \
             current_momentum
+
+
+class ExpDecay(LearnRate):
+    """    
+    :param float lr: The inital learn rate
+    :param float decay: The decay rate of learn rate
+    
+    Exponential decay of the learn rate
+    """
+
+    def __init__(self, lr: float, decay: float):
+        self.learn_rate = lr
+        self.decay = decay
+        self.step = 0
+
+    def get_lr(self) -> float:
+        return self.learn_rate * (1. / (1 + self.decay * self.step))
+
+
+class LinearDecay(LearnRate):
+    """
+    :param float lr: The inital learn rate
+    :param float decay: The decay rate of learn rate
+
+    Linear Decay of the learn rate where :math:`{lr} = {decay} * {steps} + lr_{init}`
+    """
+
+    def __init__(self, lr: float, decay: float):
+        self.b = lr
+        self.m = decay
+        self.step = 0
+
+    def get_lr(self):
+        return self.m * self.step + self.b
+
