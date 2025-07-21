@@ -11,9 +11,6 @@ from . import layers
 class Regularizer(ABC):
     """A Simple regularizer class for parameter regularization"""
 
-    def __init__(self):
-        pass
-
     def regularize(self, parameter: mg.Tensor) -> mg.Tensor:
         """
         :param mg.Tensor parameter: the parameter that will be regularized
@@ -23,23 +20,43 @@ class Regularizer(ABC):
         """
 
 
+class LearnRate:
+    """
+    A constant learn rate
+
+    :param float lr:
+    """
+    def __init__(self, lr: float):
+        self.lr = lr
+        self.step = 0
+
+    def step_inc(self) -> None:
+        self.step += 1
+
+    def get_lr(self) -> float:
+        return self.lr
+
+
 class Optimizer(ABC):
     """
     An Abstract class that is used by other optimisers and it also performs
     the primary training loop
 
-    :param float lr: The learn rate of the optimizer
+    :param float | LearnRate lr_O: The object or float learn rate of the optimizer
     :param List[Regularizer] regularizers: The regularizers that
         will be applied to the parameters by the optimizer
     :param float grad_clip: The values which the gradients will be clipped to it. Or
         pass ``None`` in order to avoid performing gradient clipping
     """
 
-    def __init__(self, lr: float, regularizers: List[Regularizer] = None,
+    def __init__(self, lr_o: LearnRate, regularizers: List[Regularizer] = None,
                  grad_clip=None) -> None:
         self.step = 1
         self.regularizers = regularizers
-        self.lr = lr
+        if isinstance(lr_o, (int, float)):
+            lr_o = LearnRate(lr_o)
+        self.learn_rate_obj = lr_o
+        self.lr = lr_o.get_lr()
         self.grad_clip_value = grad_clip
 
     def epoch_done(self):
@@ -50,21 +67,14 @@ class Optimizer(ABC):
         update it's parameters like weight decay
         """
         self.step += 1
+        self.learn_rate_obj.step_inc()
 
     def optimize_param(self, parameter: mg.Tensor) -> None:
         """
         This function takes parameters one by one and must be
         inherited by the children and overload it with the update logic
 
-        :param parameter (mg.Tensor): The parameter itself
-        """
-
-    def get_current_lr(self) -> float:
-        """
-        :return: The learn rate
-        :rtype: float
-
-        This method returns the learn rate with respect to the current step
+        :param parameter (mg.Tensor): The parameter itself that will optimized
         """
 
     def optimize(self, model: models.Sequential, loss: mg.Tensor) -> None:
@@ -78,7 +88,7 @@ class Optimizer(ABC):
         :param (models.Sequential) model: The model that will be trained
         :param mg.Tensor loss: The loss of the model
         """
-        self.lr = self.get_current_lr() if self.get_current_lr() is not None else self.lr
+        self.lr = self.learn_rate_obj.get_lr()
 
         # This loop made for regularization loss calculation
         if self.regularizers:
@@ -89,7 +99,8 @@ class Optimizer(ABC):
 
         loss.backward()
         if self.grad_clip_value is not None:
-            all_grads = [p.grad for layer in model.layers for p in layer.trainable_params if p.grad is not None]
+            all_grads = [p.grad for layer in model.layers for p in
+                         layer.trainable_params if p.grad is not None]
             if all_grads: # Ensure there are gradients to process
                 # Calculate the L2 norm of all gradients combined
                 norm = np.sqrt(sum(np.sum(g**2) for g in all_grads))
@@ -98,11 +109,11 @@ class Optimizer(ABC):
                     scaling_factor = self.grad_clip_value / norm
                     for grad_tensor in all_grads:
                         grad_tensor *= scaling_factor
+
         for layer in model.layers:
             for parameter in layer.trainable_params:
-                if parameter.grad is None:
-                    continue
-                self.optimize_param(parameter)
+                if parameter.grad is not None:
+                    self.optimize_param(parameter)
 
 
 class SGD(Optimizer):
@@ -111,32 +122,18 @@ class SGD(Optimizer):
         is more stable than Adam numerically
     """
 
-    def __init__(self, lr, decay=None, momentum=None,
+    def __init__(self, lr, momentum=None,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
         """
-        :param float lr: The learn rate of the optimiser
-        :param float decay: The rate of learn rate decay can be ``None`` or
-            ``False`` in order to avoid decay
+        :param float|LearnRate lr: The learn rate of the optimiser
         :param float momentum: The momentum but can be ``None`` or
             ``False`` in order to avoid decay
         :param list regularizers: The list which contains the regularizers
         """
-        self.lr = self.init_lr = lr
-        self.decay = decay
         self.momentum = momentum
         if self.momentum:
             self.momentums = {}
         super().__init__(lr, regularizers, clip)
-
-    def get_current_lr(self):
-        """
-        :return: The learn rate with decay if existed
-        :rtype: float
-
-        This method returns the learn rate with respect to the current step
-        """
-        return self.init_lr * \
-            (1. / (1 + self.decay * self.step)) if self.decay else self.lr
 
     def optimize_param(self, parameter: mg.Tensor) -> None:
         """
@@ -144,12 +141,11 @@ class SGD(Optimizer):
 
         This method performs training sequential models
         """
-        self.lr = self.get_current_lr()
         if self.momentum:
             if id(parameter) not in self.momentums:
                 self.momentums[id(parameter)] = np.zeros_like(parameter.data)
-            param_update_value = ((self.momentum * self.momentums[id(parameter)]) -
-                                  (self.lr * parameter.grad))
+            param_update_value = ((self.momentum * self.momentums[id(parameter)])
+                                  - (self.lr * parameter.grad))
             self.momentums[id(parameter)] = param_update_value
             parameter.data += param_update_value
         else:
@@ -160,17 +156,12 @@ class Adam(Optimizer):
     """
     Adam a very good optimiser can converge quickly but less stable numerically
 
-    :param float lr: The learn rate of the optimiser
-    :param float decay: The rate of learn rate decay can be
-        ``None`` in order to avoid decay
+    :param float|LearnRate lr: The learn rate of the optimiser
     """
 
-    def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
+    def __init__(self, learning_rate=LearnRate(0.001), epsilon=1e-7,
                  beta_1=0.9, beta_2=0.999,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
-        self.lr = self.init_lr = learning_rate
-        self.decay = decay
-
         self.epilson = epsilon
         self.beta_1 = beta_1
         self.beta_2 = beta_2
@@ -178,33 +169,23 @@ class Adam(Optimizer):
         self.cache = {}
         super().__init__(learning_rate, regularizers, clip)
 
-    def get_current_lr(self) -> float:
-        """
-        This method returns the learn rate with respect to the current step
-
-        :return: The learn rate with decay if existed
-        :rtype: float
-        """
-        return self.init_lr * \
-            (1. / (1 + self.decay * self.step)) if self.decay else self.lr
-
     def optimize_param(self, parameter: mg.Tensor) -> None:
         if id(parameter) not in self.momentum:
             self.momentum[id(parameter)] = np.zeros_like(parameter.data)
             self.cache[id(parameter)] = np.zeros_like(parameter.data)
 
-        self.momentum[id(parameter)] = (self.beta_1 *
-                                        self.momentum[id(parameter)] +
-                                        (1 - self.beta_1) * parameter.grad)
+        self.momentum[id(parameter)] = (self.beta_1
+                                        * self.momentum[id(parameter)]
+                                        + (1 - self.beta_1) * parameter.grad)
 
-        param_momentum_corrected = (self.momentum[id(parameter)]
-                                    / ((1 - self.beta_1)**(self.step)))
+        param_momentum_corrected = (self.momentum[id(parameter)] /
+                                    ((1 - self.beta_1)**(self.step)))
 
-        self.cache[id(parameter)] = (self.beta_2 * self.cache[id(parameter)]
-                                     + (1 - self.beta_2) * parameter.grad**2)
+        self.cache[id(parameter)] = (self.beta_2 * self.cache[id(parameter)] +
+                                     (1 - self.beta_2) * parameter.grad**2)
 
-        param_cache_corrected = (self.cache[id(parameter)]
-                                 / (1 - self.beta_2 ** (self.step)))
+        param_cache_corrected = (self.cache[id(parameter)] /
+                                 (1 - self.beta_2 ** (self.step)))
 
         parameter.data += -self.lr * param_momentum_corrected / \
             (np.sqrt(param_cache_corrected) + self.epilson)
@@ -241,12 +222,10 @@ class L2(Regularizer):
 class RMSProp(Optimizer):
     """Root Mean Square Propagation optimiser or for short named RMSProp"""
 
-    def __init__(self, lr=0.001, decay=None, epsilon=1e-7, rho=0.9,
+    def __init__(self, lr=LearnRate(0.001), epsilon=1e-7, rho=0.9,
                  regularizers: List[Regularizer] = None):
         """
-        :param float lr: The learning rate of optimizer
-        :param float decay: The decay rate of the learning rate
-            can be ``None`` to stop the decay
+        :param float|LearnRate lr: The learning rate of optimizer
         :param float epsilon: The epsilon of the optimizer
         :param float rho: The rho of the optimizer
         :param List[:class:`helixnet.optimizers.Regularizer`] regularizers:
@@ -254,16 +233,10 @@ class RMSProp(Optimizer):
             the parameters of the model
         """
         super().__init__(lr, regularizers)
-        self.decay = decay
+
         self.epsilon = epsilon
         self.rho = rho
         self.cache = {}
-
-    def get_current_lr(self):
-        # Update the learning rate based on the current step/iteration
-        if self.decay:
-            return self.lr * (1.0 / (1.0 + self.decay * self.step))
-        return self.lr
 
     def optimize_param(self, parameter: mg.Tensor) -> None:
         """This method contains the update logic for a single parameter."""
@@ -274,8 +247,8 @@ class RMSProp(Optimizer):
 
         # --- The Core RMSProp Logic ---
         # 1. Update the cache with the exponentially weighted average of squared gradients
-        self.cache[id(parameter)] = (self.rho * self.cache[id(parameter)] +
-                                     (1 - self.rho) * parameter.grad**2)
+        self.cache[id(parameter)] = (self.rho * self.cache[id(parameter)]
+                                     + (1 - self.rho) * parameter.grad**2)
 
         # 2. Update the parameter's data using the cache
         parameter.data += -self.lr * \
@@ -287,31 +260,19 @@ class NesterovSGD(Optimizer):
     """
     A Nesterov Stochastic Gradient Descend optimizer.
 
-    :param float lr: The learn rate of the optimiser
-    :param float decay: The rate of learn rate decay can be ``None`` or
-        ``False`` in order to avoid decay
+    :param float|LearnRate lr: The learn rate of the optimiser
     :param float momentum: The momentum value
     :param list regularizers: The list which contains the regularizers
     """
 
-    def __init__(self, lr, decay=None, momentum=0.9,
+    def __init__(self, lr, momentum=0.9,
                  regularizers: List[Regularizer] = None, clip=None) -> None:
         self.lr = self.init_lr = lr
-        self.decay = decay
+
         self.momentum = momentum
         if self.momentum:
             self.momentums = {}
         super().__init__(lr, regularizers, clip)
-
-    def get_current_lr(self):
-        """
-        :return: The learn rate with decay if existed
-        :rtype: float
-
-        This method returns the learn rate with respect to the current step
-        """
-        return self.init_lr * \
-            (1. / (1 + self.decay * self.step)) if self.decay else self.lr
 
     def optimize_param(self, parameter: mg.Tensor) -> None:
         """
@@ -325,9 +286,44 @@ class NesterovSGD(Optimizer):
         # Store the previous momentum update
         prev_momentum = self.momentums[id(parameter)]
 
-        current_momentum = self.momentum * prev_momentum - self.get_current_lr() \
+        current_momentum = self.momentum * prev_momentum - self.lr \
             * parameter.grad
         self.momentums[id(parameter)] = current_momentum
 
         parameter.data += -self.momentum * prev_momentum + (1 + self.momentum) * \
             current_momentum
+
+
+class ExpDecay(LearnRate):
+    """    
+    :param float lr: The inital learn rate
+    :param float decay: The decay rate of learn rate
+    
+    Exponential decay of the learn rate
+    """
+
+    def __init__(self, lr: float, decay: float):
+        self.learn_rate = lr
+        self.decay = decay
+        self.step = 0
+
+    def get_lr(self) -> float:
+        return self.learn_rate * (1. / (1 + self.decay * self.step))
+
+
+class LinearDecay(LearnRate):
+    """
+    :param float lr: The inital learn rate
+    :param float decay: The decay rate of learn rate
+
+    Linear Decay of the learn rate where :math:`{lr} = {decay} * {steps} + lr_{init}`
+    """
+
+    def __init__(self, lr: float, decay: float):
+        self.b = lr
+        self.m = decay
+        self.step = 0
+
+    def get_lr(self):
+        return self.m * self.step + self.b
+

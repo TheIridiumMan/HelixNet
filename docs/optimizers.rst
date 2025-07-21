@@ -24,6 +24,19 @@ Optimizers
 .. autoclass:: helixnet.optimizers.NesterovSGD
   :members:
 
+Learn Rates
+===========
+HelixNet offers very flexible ways to have a decaying learn rate
+
+.. autoclass:: helixnet.optimizers.LearnRate
+  :members:
+
+.. autoclass:: helixnet.optimizers.ExpDecay
+  :members:
+
+.. autoclass:: helixnet.optimizers.LinearDecay
+  :members:
+
 Regularizers
 ============
 HelixNet offers multiple regularizers which are :class:`helixnet.optimizers.L1` and
