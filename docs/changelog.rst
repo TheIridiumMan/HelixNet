@@ -1,13 +1,13 @@
 Changelog
 =========
-New in X.X.x
+New in 0.7.0
 ------------
 #. Ability to configure any learn rate using :class:`helixnet.optimizers.LearnRate`
 #. Added Exponential Learn Rate decay :class:`helixnet.optimizers.ExpDecay`
 #. Added linear Learn Rate decay :class:`helixnet.optimizers.LinearDecay`
 #. Optimizers now can accept a `float` as a constant learn rate or :class:`helixnet.optimizers.LearnRate`
 
-Breaking Changes in X.X.x
+Breaking Changes in 0.7.0
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 #. Now removed ``get_current_lr`` method and ``decay`` argument in all optimizers
 
